@@ -1,32 +1,3 @@
-// import './App.css'
-// import Footer from './components/Footer'
-// import Navbar from './components/Navbar'
-// function App() {
- 
-
-//   return (
-//     <>
-    
-//       <div className="min-h-screen flex flex-col">
-//       {/* Navbar */}
-//       <Navbar />
-
-//       {/* Main content takes full remaining height */}
-//       <main className="flex-grow">
-//         {/* your pages/routes go here */}
-      
-//       </main>
-
-//       {/* Footer sticks to bottom */}
-//       <Footer />
-//     </div>
-//     </>
-
-//   )
-// }
-
-// export default App
-
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import AdminLayout from "./admin/AdminLayout";
 import Dashboard from "./admin/pages/Dashboard";
@@ -34,23 +5,29 @@ import Items from "./admin/pages/Items";
 import Posts from "./admin/pages/Posts.jsx";
 import Users from "./admin/pages/Users";
 import Home from "./pages/Home.jsx";
+import SignUp from "./pages/SignUp.jsx";
+import SignIn from "./pages/SignIn.jsx";
+import Found from "./pages/Found.jsx"; 
+import ForgotPassword from "./pages/forgot-password.jsx"; // ✅ New Import
 
 function App() {
   return (
     <Router>
       <Routes>
-          <Route path="/" element={<Home/>}>
+        {/* Public Pages */}
+        <Route path="/" element={<Home />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/found" element={<Found />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} /> {/* ✅ New Route */}
 
-          </Route>
-        </Routes>
-      <Routes>
+        {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="items" element={<Items />} />
           <Route path="posts" element={<Posts />} />
         </Route>
-        
       </Routes>
     </Router>
   );
