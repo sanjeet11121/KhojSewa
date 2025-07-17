@@ -31,7 +31,7 @@ import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import AdminLayout from "./admin/AdminLayout";
 import Dashboard from "./admin/pages/Dashboard";
 import Items from "./admin/pages/Items";
-import Posts from "./admin/pages/Posts";
+import Posts from "./admin/pages/Posts.jsx";
 import Users from "./admin/pages/Users";
 import Home from "./pages/Home.jsx";
 
