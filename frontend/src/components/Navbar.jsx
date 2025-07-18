@@ -13,9 +13,9 @@ function Navbar() {
           {/* Logo and Brand wrapped together */}
           <a
             href="/"
-            className="flex items-center space-x-2 text-xl font-bold text-white hover:text-indigo-200 transition-colors duration-200"
+            className="flex items-center space-x-0 text-xl font-bold text-white hover:text-indigo-200 transition-colors duration-200"
           >
-            <img src={logo} alt="Logo" className="h-12 w-auto" />
+            <img src={logo} alt="Logo" className="h-14 w-auto" />
             <span className="hidden sm:inline">KhojSewa</span>
           </a>
 
@@ -40,7 +40,7 @@ function Navbar() {
               Sign In
             </a>
             <a
-              href="/#about"
+              href="/about"
               className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
             >
               About Us
@@ -85,7 +85,7 @@ function Navbar() {
             Sign In
           </a>
           <a
-            href="/#about"
+            href="/about"
             className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200"
           >
             About Us

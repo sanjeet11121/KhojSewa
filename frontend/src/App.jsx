@@ -9,6 +9,8 @@ import SignUp from "./pages/SignUp.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import Found from "./pages/Found.jsx"; 
 import ForgotPassword from "./pages/forgot-password.jsx"; // ✅ New Import
+import AboutUs from './pages/AboutUs';
+
 
 function App() {
   return (
@@ -19,7 +21,8 @@ function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/found" element={<Found />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} /> {/* ✅ New Route */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/about" element={<AboutUs />} />
 
         {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>
