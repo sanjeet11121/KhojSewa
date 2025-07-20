@@ -1,42 +1,46 @@
-import jwt from "jsonwebtoken";
-import { User } from "../models/user.model";
-import { ApiError } from "../utils/ApiError";
-import { asyncHandler } from "../utils/asyncHandler";
+// middleware/auth.middleware.js
+import { User } from '../models/user.model.js';
+import { ApiError } from '../utils/ApiError.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { verifyAccessToken } from '../utils/jwt.utils.js';
 
-
-
-export const verifyJWT = asyncHandler(async(req, _, next) => {
+export const authenticate = asyncHandler(async(req, res, next) => {
     try {
-        ////optional chaining bata 
-        // const token = req.cookies ? .accessToken || req.headers.("authorization") ? .replace("Bearer", "")
+        // Get token from cookies or Authorization header
         let token = null;
 
-        // Get from cookies if available
         if (req.cookies && req.cookies.accessToken) {
             token = req.cookies.accessToken;
-        }
-
-        // Get from Authorization header if not found in cookies
-        if (!token && req.headers.authorization) {
+        } else if (req.headers && req.headers.authorization) {
             const authHeader = req.headers.authorization;
-            if (authHeader.startsWith("Bearer ")) {
-                token = authHeader.slice(7).trim(); // remove 'Bearer '
+            if (authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7);
             }
         }
 
         if (!token) {
-            throw new ApiError(401, "Unauthorized access");
+            throw new ApiError(401, 'Authentication token missing');
         }
-        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
 
-        const user = await User.findById(decodedToken && decodedToken._id).select("-password -refreshToken")
+        // Verify token
+        const decoded = verifyAccessToken(token);
+
+        // Find user
+        const user = await User.findById(decoded._id).select('-password -refreshToken');
         if (!user) {
-            throw new ApiError(401, "Unauthorized access")
+            throw new ApiError(401, 'User not found');
         }
 
+        // Attach user to request
         req.user = user;
         next();
     } catch (error) {
-        throw new ApiError(401, error.message || "Unauthorized access")
+        let message = 'Invalid token';
+        if (error.name === 'TokenExpiredError') {
+            message = 'Token expired';
+        } else if (error.name === 'JsonWebTokenError') {
+            message = 'Invalid token';
+        }
+        throw new ApiError(401, message);
     }
-})
+});
