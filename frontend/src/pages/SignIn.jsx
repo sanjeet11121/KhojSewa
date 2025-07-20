@@ -3,20 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import ClipLoader from "react-spinners/ClipLoader";
 import logo from "../assets/khojsewa_logo.png";
 import signinImg from "../assets/signin.png";
+import { Link } from "react-router-dom";
 
 function SignIn() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [color] = useState("#fff");
-
-  const override = {
-    display: "block",
-    margin: "0 auto",
-  };
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -33,7 +28,7 @@ function SignIn() {
       const res = await fetch('http://localhost:8000/api/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify(form),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -49,26 +44,28 @@ function SignIn() {
   };
 
   return (
-    <div className="w-full h-screen bg-gradient-to-b from-sky-100 to-blue-100 flex justify-center items-center">
-      <div className="w-[90%] lg:max-w-[60%] h-[600px] bg-white rounded-2xl flex overflow-hidden border-2 border-sky-300">
+    <div className="w-full h-screen bg-gradient-to-br from-purple-100 to-white flex justify-center items-center">
+      <div className="w-[90%] lg:max-w-[60%] h-[600px] bg-white rounded-2xl flex overflow-hidden border-2 border-purple-300 shadow-md">
 
-        {/* Left Panel */}
-        <div className="hidden lg:flex w-[50%] h-full flex-col items-center p-6 gap-4 justify-center bg-sky-50">
-          <span className="text-xl font-semibold text-sky-700">
+        {/* Left Side Logo/Intro */}
+        <div className="hidden lg:flex w-[50%] h-full flex-col items-center p-6 gap-4 justify-center bg-purple-50">
+          <span className="text-xl font-semibold text-purple-700">
             Sign in to
           </span>
-          <img src={logo} alt="Logo" className="w-28 h-28 rounded-full" />
+          <Link to="/">
+  <img src={logo} alt="Logo" className="w-28 h-28 rounded-full hover:scale-105 transition" />
+</Link>
           <p className="text-center text-base text-gray-700">
-            Welcome to <span className="font-bold text-sky-600">KhojSewa</span><br />
+            Welcome to <span className="font-bold text-purple-600">KhojSewa</span><br />
             Reuniting lost items with their owners.
           </p>
         </div>
 
-        {/* Right Panel - Form */}
-        <div className="w-full lg:w-[50%] h-full flex flex-col justify-center items-center bg-white px-6 gap-4">
+        {/* Right Side Form */}
+        <div className="w-full lg:w-[50%] h-full flex flex-col justify-center items-center px-6 gap-4 bg-white">
           <div className="flex flex-col items-center">
             <img src={signinImg} alt="Sign In" className="w-24 h-24 rounded-full" />
-            <span className="text-sky-800 text-lg mt-2 font-medium">Welcome Back</span>
+            <span className="text-purple-800 text-lg mt-2 font-medium">Welcome Back</span>
           </div>
 
           {error && <div className="text-red-500 text-sm">{error}</div>}
@@ -78,8 +75,8 @@ function SignIn() {
             <input
               type="text"
               name="email"
-              placeholder="Email"
-              className="p-3 border border-gray-300 rounded-xl"
+              placeholder="Enter your email e.g. johndoe@example.com"
+              className="p-3 border border-gray-300 rounded-xl focus:outline-purple-400"
               value={form.email}
               onChange={handleChange}
               required
@@ -88,8 +85,8 @@ function SignIn() {
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
-                placeholder="Password"
-                className="p-3 border border-gray-300 rounded-xl w-full pr-12"
+                placeholder="Enter password (min. 6 characters)"
+                className="p-3 border border-gray-300 rounded-xl w-full pr-12 focus:outline-purple-400"
                 value={form.password}
                 onChange={handleChange}
                 required
@@ -106,14 +103,13 @@ function SignIn() {
 
             <button
               type="submit"
-              className="bg-sky-600 hover:bg-sky-700 text-white p-3 rounded-xl transition flex items-center justify-center"
+              className="bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white p-3 rounded-xl transition flex items-center justify-center"
               disabled={loading}
             >
               {loading ? (
                 <ClipLoader
-                  color={color}
+                  color="#ffffff"
                   loading={loading}
-                  cssOverride={override}
                   size={24}
                 />
               ) : (
@@ -124,18 +120,17 @@ function SignIn() {
 
           <div className="text-sm mt-2">
             Don't have an account?{" "}
-            <a href="/signup" className="text-sky-600 underline">
+            <a href="/signup" className="text-purple-600 underline">
               Sign Up
             </a>
           </div>
           <div
-            className="text-sm mt-1 text-sky-700 cursor-pointer"
+            className="text-sm mt-1 text-purple-700 cursor-pointer"
             onClick={() => navigate("/forgot-password")}
           >
             Forgot Password?
           </div>
         </div>
-
       </div>
     </div>
   );

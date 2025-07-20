@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import ClipLoader from "react-spinners/ClipLoader";
 import logo from '../assets/khojsewa_logo.png';
 import signinImg from '../assets/signin.png';
+import { Link } from "react-router-dom";
+
 
 function SignUp() {
   const [form, setForm] = useState({
@@ -13,7 +15,7 @@ function SignUp() {
   const [success, setSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [color] = useState("#fff");
+  const [color] = useState("linear-gradient(to right, #8a2be2, #9400d3)");
 
   const override = {
     display: "block",
@@ -51,15 +53,17 @@ function SignUp() {
   };
 
   return (
-    <div className="w-full h-screen bg-gradient-to-b from-sky-100 to-blue-100 flex justify-center items-center">
-      <div className="w-[90%] lg:max-w-[60%] h-[600px] bg-white rounded-2xl flex overflow-hidden border-2 border-sky-300">
+    <div className="w-full h-screen bg-gradient-to-b from-purple-200 to-purple-100 flex justify-center items-center">
+      <div className="w-[90%] lg:max-w-[60%] h-[600px] bg-white rounded-2xl flex overflow-hidden border-2 border-purple-300">
 
         {/* Left Panel */}
-        <div className="hidden lg:flex w-[50%] h-full flex-col items-center p-6 gap-4 justify-center bg-sky-50">
-          <span className="text-xl font-semibold text-sky-700">Sign up to</span>
-          <img src={logo} alt="Logo" className="w-28 h-28 rounded-full" />
+        <div className="hidden lg:flex w-[50%] h-full flex-col items-center p-6 gap-4 justify-center bg-purple-50">
+          <span className="text-xl font-semibold text-purple-700">Sign up to</span>
+          <Link to="/">
+  <img src={logo} alt="Logo" className="w-28 h-28 rounded-full hover:scale-105 transition" />
+</Link>
           <p className="text-center text-base text-gray-700">
-            Join <span className="font-bold text-sky-600">KhojSewa</span><br />
+            Join <span className="font-bold text-purple-600">KhojSewa</span><br />
             Reuniting lost items with their owners.
           </p>
         </div>
@@ -68,7 +72,7 @@ function SignUp() {
         <div className="w-full lg:w-[50%] h-full flex flex-col justify-center items-center bg-white px-6 gap-4">
           <div className="flex flex-col items-center">
             <img src={signinImg} alt="Sign Up" className="w-24 h-24 rounded-full" />
-            <span className="text-sky-800 text-lg mt-2 font-medium">Create an Account</span>
+            <span className="text-purple-800 text-lg mt-2 font-medium">Create an Account</span>
           </div>
 
           {error && <div className="text-red-500 text-sm">{error}</div>}
@@ -115,7 +119,7 @@ function SignUp() {
 
             <button
               type="submit"
-              className="bg-sky-600 hover:bg-sky-700 text-white p-3 rounded-xl transition flex items-center justify-center"
+              className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl transition flex items-center justify-center"
               disabled={loading}
             >
               {loading ? (
@@ -134,7 +138,7 @@ function SignUp() {
 
           <div className="text-sm mt-2">
             Already have an account?{" "}
-            <a href="/signin" className="text-sky-600 underline">
+            <a href="/signin" className="text-purple-600 underline">
               Sign In
             </a>
           </div>
