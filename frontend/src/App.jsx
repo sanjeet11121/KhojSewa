@@ -4,6 +4,7 @@ import Dashboard from "./admin/pages/Dashboard";
 import Items from "./admin/pages/Items";
 import Posts from "./admin/pages/Posts.jsx";
 import Users from "./admin/pages/Users";
+import Notifications from "./admin/pages/Notifications"; // ✅ Import Notifications
 import Home from "./pages/Home.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import SignIn from "./pages/SignIn.jsx";
@@ -23,11 +24,12 @@ function App() {
 
         {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Dashboard />} />
+          <Route index element={<Dashboard />} /> 
           <Route path="users" element={<Users />} />
           <Route path="items" element={<Items />} />
           <Route path="posts" element={<Posts />} />
-        </Route>
+          <Route path="notifications" element={<Notifications />} />
+        </Route>    
       </Routes>
     </Router>
   );

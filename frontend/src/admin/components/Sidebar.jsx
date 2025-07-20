@@ -1,30 +1,15 @@
-import { ClipboardDocumentListIcon, HomeIcon, UsersIcon } from "@heroicons/react/24/outline";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
-const Sidebar = () => {
+export default function Sidebar() {
   return (
-    <aside className="w-64 bg-sky-700 text-white min-h-screen px-4 py-6 space-y-6">
-      <div className="text-2xl font-bold text-center">Admin Panel</div>
+    <aside className="w-64 bg-gradient-to-b from-purple-700 to-purple-300 text-white p-4">
+      <h2 className="text-2xl font-bold mb-6">Admin Panel</h2>
       <nav className="space-y-4">
-        <Link to="/admin" className="flex items-center space-x-2 hover:text-sky-200">
-          <HomeIcon className="h-5 w-5" />
-          <span>Dashboard</span>
-        </Link>
-        <Link to="/admin/users" className="flex items-center space-x-2 hover:text-sky-200">
-          <UsersIcon className="h-5 w-5" />
-          <span>Users</span>
-        </Link>
-        <Link to="/admin/items" className="flex items-center space-x-2 hover:text-sky-200">
-          <ClipboardDocumentListIcon className="h-5 w-5" />
-          <span>Items</span>
-        </Link>
-        <Link to="/admin/posts" className="flex items-center space-x-2 hover:text-sky-200">
-          <ClipboardDocumentListIcon className="h-5 w-5" />
-          <span>Posts</span>
-        </Link>
+        <NavLink to="/admin" className="block p-2 rounded hover:bg-purple-500">Dashboard</NavLink>
+        <NavLink to="/admin/users" className="block p-2 rounded hover:bg-purple-500">User Management</NavLink>
+        <NavLink to="/admin/posts" className="block p-2 rounded hover:bg-purple-500">Post Management</NavLink>
+        <NavLink to="/admin/notifications" className="block p-2 rounded hover:bg-purple-500">Notifications</NavLink>
       </nav>
     </aside>
   );
-};
-
-export default Sidebar;
+}

@@ -1,10 +1,8 @@
-const Topbar = () => {
+export default function Topbar() {
   return (
     <header className="bg-white shadow p-4 flex justify-between items-center">
-      <h1 className="text-xl font-semibold text-sky-700">Admin Dashboard</h1>
-      <div className="text-sm text-gray-600">Welcome, Admin</div>
+      <h1 className="text-xl font-semibold">Lost & Found Dashboard</h1>
+      <button className="bg-purple-600 text-white px-4 py-2 rounded">Logout</button>
     </header>
   );
-};
-
-export default Topbar;
+}
