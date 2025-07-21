@@ -8,11 +8,8 @@ import Notifications from "./admin/pages/Notifications"; // ✅ Import Notificat
 import Home from "./pages/Home.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import SignIn from "./pages/SignIn.jsx";
-import Search from "./pages/Search.jsx"; 
+import Found from "./pages/ItemFound.jsx"; 
 import ForgotPassword from "./pages/forgot-password.jsx"; // ✅ New Import
-import AboutUs from './pages/AboutUs';
-import ItemFound from "./pages/ItemFound.jsx";
-
 
 function App() {
   return (
@@ -22,10 +19,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
-        <Route path="/search" element={<Search />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/about" element={<AboutUs />} />
-        <Route path="/ItemFound" element={<ItemFound />} />
+        <Route path="/found" element={<Found />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} /> {/* ✅ New Route */}
 
         {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>

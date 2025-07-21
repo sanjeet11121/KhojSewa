@@ -32,70 +32,89 @@ const COLORS1 = ["#12b95aff", "#534e4bff"];
 
 export default function Dashboard() {
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Dashboard Overview</h1>
+    <div className="pt-16 p-4">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Dashboard Overview</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Line Chart */}
         <div className="bg-white p-4 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">Items Over Time</h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <h2 className="text-lg md:text-xl font-semibold mb-2">Items Over Time</h2>
+          <ResponsiveContainer width="100%" height={250}>
             <LineChart data={lineData}>
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="found" stroke="#0088FE" />
-              <Line type="monotone" dataKey="lost" stroke="#FF8042" />
+              <Legend verticalAlign="bottom" height={36} />
+              <Line type="monotone" dataKey="found" stroke="#0088FE" animationDuration={1000} />
+              <Line type="monotone" dataKey="lost" stroke="#FF8042" animationDuration={1000} />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Pie Chart (Found vs Lost) */}
         <div className="bg-white p-4 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">Found vs Lost</h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <h2 className="text-lg md:text-xl font-semibold mb-2">Found vs Lost</h2>
+          <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label
+                labelLine={false}
+              >
                 {pieData.map((entry, index) => (
                   <Cell key={index} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend verticalAlign="bottom" height={36} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
         {/* Bar Chart (Pending Posts) */}
         <div className="bg-white p-4 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">Pending Posts</h2>
-          <ResponsiveContainer width="50%" height={300}>
+          <h2 className="text-lg md:text-xl font-semibold mb-2">Pending Posts</h2>
+          <ResponsiveContainer width="100%" height={250}>
             <BarChart data={pendingPostsData}>
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="pending" fill="#f34a61ff" />
+              <Bar dataKey="pending" fill="#f34a61ff" animationDuration={1000} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Pie Chart (User Statistics) */}
         <div className="bg-white p-4 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">User Statistics</h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <h2 className="text-lg md:text-xl font-semibold mb-2">User Statistics</h2>
+          <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={userStatsData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+              <Pie
+                data={userStatsData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label
+                labelLine={false}
+              >
                 {userStatsData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS1[index % COLORS1.length]} />
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
-            </PieChart> 
+              <Legend verticalAlign="bottom" height={36} />
+            </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
     </div>
   );
 }
+
