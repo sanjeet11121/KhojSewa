@@ -3,8 +3,8 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendMail } from "../utils/email.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt.utils.js";
-import { sendMail } from "../utils/mailer.js";
 
 // Helper to generate email verification token
 const generateEmailToken = () => crypto.randomBytes(20).toString('hex');

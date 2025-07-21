@@ -1,4 +1,5 @@
-import { FoundPost, LostPost } from "../models/post.model.js";
+import { FoundPost } from "../models/foundPost.model.js";
+import { LostPost } from "../models/lostPost.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
