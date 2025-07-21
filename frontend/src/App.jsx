@@ -1,7 +1,6 @@
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import AdminLayout from "./admin/AdminLayout";
 import Dashboard from "./admin/pages/Dashboard";
-import Items from "./admin/pages/Items";
 import Posts from "./admin/pages/Posts.jsx";
 import Users from "./admin/pages/Users";
 import Notifications from "./admin/pages/Notifications"; // ✅ Import Notifications
@@ -26,7 +25,6 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} /> 
           <Route path="users" element={<Users />} />
-          <Route path="items" element={<Items />} />
           <Route path="posts" element={<Posts />} />
           <Route path="notifications" element={<Notifications />} />
         </Route>    

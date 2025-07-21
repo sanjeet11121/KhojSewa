@@ -79,7 +79,7 @@ export default function Dashboard() {
         {/* Bar Chart (Pending Posts) */}
         <div className="bg-white p-4 rounded shadow">
           <h2 className="text-lg md:text-xl font-semibold mb-2">Pending Posts</h2>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="60%" height={250}>
             <BarChart data={pendingPostsData}>
               <XAxis dataKey="name" />
               <YAxis />
