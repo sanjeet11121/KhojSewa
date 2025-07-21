@@ -5,10 +5,11 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   return (
     <>
       {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg z-50
-        ${isOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 md:static`}
-      >
+     <aside
+  className={`fixed top-0 left-0 h-full w-64 bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg z-50
+  ${isOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 md:static`}
+>
+
         {/* Close button (only for mobile) */}
         <div className="flex justify-between items-center md:hidden">
           <h2 className="text-xl font-bold">Admin Panel</h2>
