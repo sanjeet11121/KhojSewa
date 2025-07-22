@@ -3,7 +3,7 @@ import logo from "../assets/khojsewa_logo.png";
 
 const Footer = () => {
   return (
-    <footer className="w-full bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 text-white">
+    <footer className="w-full bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 text-white">
       <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
         {/* Logo & Description */}
         <div>
@@ -12,8 +12,8 @@ const Footer = () => {
             <span className="text-xl font-bold">KhojSewa</span>
           </a>
           <p className="mt-4 text-sm">
-            तपाईंको भरपर्दो platform, हराएको सामान फेला पार्न र पोस्ट गर्न।
-            हाम्रो community मा सामेल हुनुहोस् र हराएको सामान फिर्ता गर्न मद्दत गर्नुहोस्।
+            Your reliable platform to find and post lost items.
+Join our community and help return lost belongings.
           </p>
         </div>
 

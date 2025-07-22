@@ -4,7 +4,7 @@ const CTASection = () => {
       <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to help or get help?</h2>
       <p className="mb-6">Join thousands of users helping each other daily.</p>
       <a
-        href="/post"
+        href="/ItemFound"
         className="bg-white text-purple-700 px-6 py-3 rounded hover:bg-purple-100 font-semibold transition-colors duration-200"
       >
         Post Now
