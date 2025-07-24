@@ -1,8 +1,12 @@
 import React from "react";
+import Navbar from "../components/Navbar"; // Adjust the path if necessary
 
 export default function AboutUs() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-100 via-white to-white text-gray-800">
+      {/* Navbar */}
+      <Navbar />
+
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-16 px-4 sm:px-10">
         <div className="max-w-5xl mx-auto text-center">

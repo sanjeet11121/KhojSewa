@@ -10,6 +10,7 @@ import SignIn from "./pages/SignIn.jsx";
 import ItemFound from "./pages/ItemFound.jsx"; 
 import Search from "./pages/Search.jsx"
 import ForgotPassword from "./pages/forgot-password.jsx"; // ✅ New Import
+import AboutUs from "./pages/AboutUs.jsx";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/ItemFound" element={<ItemFound />} />
         <Route path="/Search" element={<Search />} />
         <Route path="/forgot-password" element={<ForgotPassword />} /> {/* ✅ New Route */}
+        <Route path="/about" element={<AboutUs />} />
 
         {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>
