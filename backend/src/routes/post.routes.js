@@ -4,28 +4,31 @@ import {
   createFoundPost,
   createLostPost,
   deletePost,
-  getPostById
+  getPostById,
+  getAllLostPosts
 } from "../controllers/post.controllers.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import upload from "../middlewares/multer.middleware.js";
+import upload from "../middlewares/multer.middleware.js"; // not destructured
 
 const postRouter = express.Router();
 
-// Apply authentication middleware
+// Public routes (no auth required)
+postRouter.get("/lost", getAllLostPosts);
+
+// Require authentication for all other post routes
 postRouter.use(authenticate);
 
-// Found Post Routes
-postRouter.post("/found", upload.single('image'), createFoundPost);
+// Create lost/found post with image upload
+postRouter.post("/found", upload.single("image"), createFoundPost);
+postRouter.post("/lost", upload.array("images", 3), createLostPost);
 
-// Lost Post Routes
-postRouter.post("/lost", upload.single('image'), createLostPost);
+// Get single post by type and ID
+postRouter.get("/:type/:postId", getPostById);
 
-// Common Post Routes
-postRouter.get("/found/:postId", getPostById);
-postRouter.get("/lost/:postId", getPostById);
+// Delete post
+postRouter.delete("/:type/:postId", deletePost);
 
-// Restrict :type to 'found' or 'lost'
-postRouter.delete("/:type(found|lost)/:postId", deletePost);
-postRouter.post("/:type(found|lost)/:postId/claims", createClaim);
+// Claim post
+postRouter.post("/:type/:postId/claims", createClaim);
 
 export default postRouter;

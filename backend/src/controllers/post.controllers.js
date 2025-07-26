@@ -3,7 +3,7 @@ import { LostPost } from "../models/lostPost.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, uploadBufferToCloudinary } from "../utils/cloudinary.js";
 
 // Common utility functions
 const validatePostOwnership = (post, userId) => {
@@ -44,25 +44,31 @@ const createFoundPost = asyncHandler(async(req, res) => {
 
 // Lost Post Controllers
 const createLostPost = asyncHandler(async(req, res) => {
-    const { title, description, locationLost, lostDate } = req.body;
+    const { itemName, description, location, date, category } = req.body;
     const userId = req.user._id;
 
-    if (!title || !description || !locationLost || !lostDate) {
+    if (!itemName || !description || !location || !date) {
         throw new ApiError(400, "All fields are required");
     }
 
-    let imageUrl;
-    if (req.file) {
-        const cloudinaryResponse = await uploadOnCloudinary(req.file.path);
-        imageUrl = cloudinaryResponse && cloudinaryResponse.url;
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+            // Upload buffer directly to Cloudinary
+            const cloudinaryResponse = await uploadBufferToCloudinary(file.buffer, file.originalname);
+            if (cloudinaryResponse && cloudinaryResponse.url) {
+                imageUrls.push(cloudinaryResponse.url);
+            }
+        }
     }
 
     const post = await LostPost.create({
-        title,
+        title: itemName,
         description,
-        image: imageUrl,
-        locationLost,
-        lostDate,
+        images: imageUrls,
+        locationLost: location,
+        lostDate: date,
+        category: category || 'Other',
         user: userId
     });
 
@@ -170,10 +176,23 @@ const createClaim = asyncHandler(async(req, res) => {
     );
 });
 
+// Get all lost posts for main page
+const getAllLostPosts = asyncHandler(async(req, res) => {
+    const posts = await LostPost.find({ isFound: false })
+        .populate('user', 'fullName email avatar')
+        .sort({ createdAt: -1 })
+        .limit(10);
+
+    return res.status(200).json(
+        new ApiResponse(200, posts, "Lost posts retrieved successfully")
+    );
+});
+
 export {
     createClaim,
     createFoundPost,
     createLostPost,
     deletePost,
-    getPostById
+    getPostById,
+    getAllLostPosts
 };

@@ -1,16 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../config.js';
 
-const LostItemSearchPage = () => {
+const LostItemPage = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: '',
+    itemName: '',
     category: 'Electronics',
     location: '',
     date: '',
     description: '',
     images: [],
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const categories = ['Electronics', 'Stationeries', 'Clothing', 'Food', 'Toys', 'Other'];
+
+  // Check authentication
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      navigate('/signin');
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -18,14 +32,62 @@ const LostItemSearchPage = () => {
   };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files).slice(0, 3); // max 3 images
     setFormData(prev => ({ ...prev, images: files }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // You can send this data to your search API
-    console.log('Searching with:', formData);
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      const token = localStorage.getItem('accessToken');
+
+      const formDataToSend = new FormData();
+      formDataToSend.append('itemName', formData.itemName);
+      formDataToSend.append('category', formData.category);
+      formDataToSend.append('location', formData.location);
+      formDataToSend.append('date', formData.date);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('userId', user._id);
+
+      // Append images
+      formData.images.forEach((image, index) => {
+        formDataToSend.append('images', image);
+      });
+
+      const res = await fetch(`${api}/api/v1/posts/lost`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formDataToSend
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || 'Failed to post lost item');
+      } else {
+        setSuccess('Lost item posted successfully!');
+        setFormData({
+          itemName: '',
+          category: 'Electronics',
+          location: '',
+          date: '',
+          description: '',
+          images: [],
+        });
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+    setLoading(false);
   };
 
   return (
@@ -33,12 +95,15 @@ const LostItemSearchPage = () => {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-            Search Lost Item
+            Report Lost Item
           </h1>
           <p className="mt-3 text-xl text-gray-600">
-            Fill out the details to find your missing item.
+            Fill out the details to report your lost item.
           </p>
         </div>
+
+        {error && <div className="text-red-500 text-sm mb-4 text-center">{error}</div>}
+        {success && <div className="text-green-600 text-sm mb-4 text-center">{success}</div>}
 
         <div className="bg-white shadow-xl rounded-lg overflow-hidden">
           <div className="p-6 sm:p-8">
@@ -46,14 +111,14 @@ const LostItemSearchPage = () => {
 
               {/* Item Name */}
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="itemName" className="block text-sm font-medium text-gray-700">
                   Item Name
                 </label>
                 <input
                   type="text"
-                  name="name"
-                  id="name"
-                  value={formData.name}
+                  name="itemName"
+                  id="itemName"
+                  value={formData.itemName}
                   onChange={handleChange}
                   required
                   placeholder="e.g. iPhone 13, Backpack, etc."
@@ -130,28 +195,28 @@ const LostItemSearchPage = () => {
               </div>
 
               {/* Image Upload */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Upload Images (Optional, Max 3)
-  </label>
-  
-  <div className="flex items-center">
-    <label
-      htmlFor="imageUpload"
-      className="cursor-pointer inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-    >
-      Choose Files
-    </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Images (Optional, Max 3)
+                </label>
+                
+                <div className="flex items-center">
+                  <label
+                    htmlFor="imageUpload"
+                    className="cursor-pointer inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                  >
+                    Choose Files
+                  </label>
 
-    <input
-      id="imageUpload"
-      type="file"
-      accept="image/*"
-      multiple
-      onChange={handleImageUpload}
-      className="hidden"
-    />
-  </div>
+                  <input
+                    id="imageUpload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
                 {formData.images.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-2">
                     {formData.images.map((file, idx) => (
@@ -170,21 +235,11 @@ const LostItemSearchPage = () => {
               <div>
                 <button
                   type="submit"
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-lg transition"
+                  disabled={loading}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-lg transition disabled:opacity-50"
                 >
-                  Search Item
+                  {loading ? 'Posting...' : 'Post Lost Item'}
                 </button>
-              </div>
-
-              {/* Report Link */}
-              <div className="text-center mt-6">
-                <p className="text-sm text-gray-600">Can’t find your item?</p>
-                <a
-                  href="/report"
-                  className="inline-block mt-2 px-4 py-2 border border-purple-600 text-purple-600 font-medium rounded-lg hover:bg-purple-50 transition"
-                >
-                  Report Lost Item
-                </a>
               </div>
             </form>
           </div>
@@ -194,4 +249,4 @@ const LostItemSearchPage = () => {
   );
 };
 
-export default LostItemSearchPage;
+export default LostItemPage;

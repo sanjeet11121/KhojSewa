@@ -1,6 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function FoundItemPage() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      navigate('/signin');
+    }
+  }, [navigate]);
+
   const [formData, setFormData] = useState({
     itemName: "",
     location: "",

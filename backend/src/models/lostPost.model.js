@@ -11,9 +11,9 @@ const lostPostSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    image: {
+    images: [{
         type: String
-    },
+    }],
     locationLost: {
         type: String,
         required: true
@@ -22,12 +22,13 @@ const lostPostSchema = new mongoose.Schema({
         type: Date,
         required: true
     },
-    category: { // Add item category
+    category: {
         type: String,
         required: true,
-        enum: ['electronics', 'stationeries', 'clothing', 'food', 'toys', 'other'],
+        enum: ['Electronics', 'Stationeries', 'Clothing', 'Food', 'Toys', 'Other'],
+        default: 'Other'
     },
-    itemName: { type: String }, // Optional
+    itemName: { type: String },
     itemCondition: { type: String },
     user: {
         type: mongoose.Schema.Types.ObjectId,

@@ -1,14 +1,17 @@
-import multer from 'multer';
+import multer from "multer";
 
-const storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-        cb(null, "./public/temp")
-    },
-    filename: function(req, file, cb) {
-        // const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        cb(null, file.originalname) //file ko original name batai save hunxa but yo prefer type hoina 
+// Use memory storage so files are not saved to disk
+const storage = multer.memoryStorage();
+
+// File filter (optional)
+const fileFilter = (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+        cb(null, true);
+    } else {
+        cb(new Error("Only image files are allowed!"), false);
     }
-})
+};
 
-const upload = multer({ storage });
+const upload = multer({ storage, fileFilter });
+
 export default upload;

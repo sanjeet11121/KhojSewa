@@ -25,7 +25,7 @@ function SignIn() {
     setSuccess('');
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/auth/signin', {
+      const res = await fetch('http://localhost:8000/api/v1/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -35,7 +35,11 @@ function SignIn() {
         setError(data.message || 'Sign in failed');
       } else {
         setSuccess('Sign in successful!');
-        // TODO: Save token or redirect
+        localStorage.setItem('user', JSON.stringify(data.data?.user));
+        localStorage.setItem('accessToken', data.data?.accessToken);
+        setTimeout(() => {
+          navigate('/');
+        }, 1000);
       }
     } catch (err) {
       setError('Network error');

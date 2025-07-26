@@ -7,7 +7,6 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET // Click 'View API Keys' above to copy your API secret
 });
 
-
 const uploadOnCloudinary = async(localFilePath) => {
     try {
         if (!localFilePath) return null
@@ -28,4 +27,18 @@ const uploadOnCloudinary = async(localFilePath) => {
     }
 }
 
-export { uploadOnCloudinary };
+// Upload a buffer directly to Cloudinary
+const uploadBufferToCloudinary = async (buffer, filename) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { resource_type: 'auto', public_id: filename },
+            (error, result) => {
+                if (error) return reject(error);
+                resolve(result);
+            }
+        );
+        stream.end(buffer);
+    });
+};
+
+export { uploadOnCloudinary, uploadBufferToCloudinary };

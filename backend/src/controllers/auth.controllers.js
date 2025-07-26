@@ -9,6 +9,9 @@ import { generateAccessToken, generateRefreshToken } from "../utils/jwt.utils.js
 // Helper to generate email verification token
 const generateEmailToken = () => crypto.randomBytes(20).toString('hex');
 
+// Helper to generate OTP
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
 // SignUp Controller
 const signUp = asyncHandler(async(req, res) => {
     const { fullName, email, password, phoneNumber } = req.body;
@@ -19,9 +22,9 @@ const signUp = asyncHandler(async(req, res) => {
         throw new ApiError(409, "User with this email already exists");
     }
 
-    // Generate email verification token
-    const emailVerificationToken = generateEmailToken();
-    const emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    // Generate OTP for email verification
+    const emailVerificationOtp = generateOTP();
+    const emailVerificationOtpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     // Create user
     const user = await User.create({
@@ -29,46 +32,51 @@ const signUp = asyncHandler(async(req, res) => {
         email,
         password,
         phoneNumber,
-        emailVerificationToken,
-        emailVerificationExpires,
+        emailVerificationOtp,
+        emailVerificationOtpExpires,
         isVerified: false
     });
 
-    // Send verification email
-    const verificationUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/verify-email/${emailVerificationToken}`;
-
+    // Send verification email with OTP
     await sendMail(
         email,
-        "Verify Your Email",
-        `Please click this link to verify your email: ${verificationUrl}`
+        "Verify Your Email - KhojSewa",
+        `Your email verification OTP is: <strong>${emailVerificationOtp}</strong><br><br>
+        This OTP will expire in 10 minutes.<br>
+        If you didn't create an account with KhojSewa, please ignore this email.`
     );
 
     // Return response without sensitive info
-    const createdUser = await User.findById(user._id).select("-password -refreshToken -emailVerificationToken -emailVerificationExpires");
+    const createdUser = await User.findById(user._id).select("-password -refreshToken -emailVerificationOtp -emailVerificationOtpExpires");
 
     return res.status(201).json(
-        new ApiResponse(201, createdUser, "User registered successfully. Please check your email for verification instructions.")
+        new ApiResponse(201, { user: createdUser, email }, "User registered successfully. Please check your email for OTP verification.")
     );
 });
 
 // Verify Email Controller
 const verifyEmail = asyncHandler(async(req, res) => {
-    const { token } = req.params;
+    const { email, otp } = req.body;
 
-    // Find user by token
+    if (!email || !otp) {
+        throw new ApiError(400, "Email and OTP are required");
+    }
+
+    // Find user by email and OTP
     const user = await User.findOne({
-        emailVerificationToken: token,
-        emailVerificationExpires: { $gt: Date.now() }
+        email,
+        emailVerificationOtp: otp,
+        emailVerificationOtpExpires: { $gt: Date.now() }
     });
 
     if (!user) {
-        throw new ApiError(400, "Invalid or expired verification token");
+        throw new ApiError(400, "Invalid or expired OTP");
     }
 
     // Mark as verified
     user.isVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
+    user.emailVerificationOtp = undefined;
+    user.emailVerificationOtpExpires = undefined;
     await user.save();
 
     return res.status(200).json(
@@ -76,58 +84,90 @@ const verifyEmail = asyncHandler(async(req, res) => {
     );
 });
 
-// SignIn Controller
-const signIn = asyncHandler(async(req, res) => {
-    const { email, password } = req.body;
+// Resend Email Verification OTP Controller
+const resendEmailVerificationOtp = asyncHandler(async(req, res) => {
+    const { email } = req.body;
 
-    // Check if user exists
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    // Find user
     const user = await User.findOne({ email });
     if (!user) {
         throw new ApiError(404, "User not found");
     }
 
-    // Check if password is correct
-    const isPasswordValid = await user.isPasswordCorrect(password);
-    if (!isPasswordValid) {
-        throw new ApiError(401, "Invalid credentials");
+    if (user.isVerified) {
+        throw new ApiError(400, "Email is already verified");
     }
 
-    // Check if email is verified
-    if (!user.isVerified) {
-        throw new ApiError(403, "Please verify your email first");
-    }
+    // Generate new OTP
+    const emailVerificationOtp = generateOTP();
+    const emailVerificationOtpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    // Generate tokens
-    const accessToken = generateAccessToken({ _id: user._id });
-    const refreshToken = generateRefreshToken({ _id: user._id });
+    // Update user with new OTP
+    user.emailVerificationOtp = emailVerificationOtp;
+    user.emailVerificationOtpExpires = emailVerificationOtpExpires;
+    await user.save();
 
-    // Save refresh token to database
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    // Send new OTP via email
+    await sendMail(
+        email,
+        "Verify Your Email - KhojSewa",
+        `Your new email verification OTP is: <strong>${emailVerificationOtp}</strong><br><br>
+        This OTP will expire in 10 minutes.<br>
+        If you didn't request this OTP, please ignore this email.`
+    );
 
-    // Create cookie options
-    const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict"
-    };
+    return res.status(200).json(
+        new ApiResponse(200, { email }, "New OTP sent to your email")
+    );
+});
 
-    // Set cookies and send response
-    return res
-        .status(200)
-        .cookie("accessToken", accessToken, {...cookieOptions, maxAge: 24 * 60 * 60 * 1000 }) // 1 day
-        .cookie("refreshToken", refreshToken, {...cookieOptions, maxAge: 10 * 24 * 60 * 60 * 1000 }) // 10 days
-        .json(
-            new ApiResponse(200, {
-                user: {
-                    _id: user._id,
-                    fullName: user.fullName,
-                    email: user.email,
-                    phoneNumber: user.phoneNumber
-                },
-                accessToken
-            }, "User logged in successfully")
-        );
+// SignIn Controller
+const signIn = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email }).select("+password");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid credentials");
+  }
+
+  if (!user.isVerified) {
+    throw new ApiError(403, "Please verify your email first");
+  }
+
+  const accessToken = generateAccessToken({ _id: user._id });
+  const refreshToken = generateRefreshToken({ _id: user._id });
+
+  user.refreshToken = refreshToken;
+  await user.save({ validateBeforeSave: false });
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict"
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 24 * 60 * 60 * 1000 })
+    .cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 10 * 24 * 60 * 60 * 1000 })
+    .json(new ApiResponse(200, {
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber
+      },
+      accessToken
+    }, "User logged in successfully"));
 });
 
 // SignOut Controller
@@ -153,7 +193,7 @@ const signOut = asyncHandler(async(req, res) => {
         .json(new ApiResponse(200, null, "User logged out successfully"));
 });
 
-export const requestPasswordReset = asyncHandler(async(req, res) => {
+ const requestPasswordReset = asyncHandler(async(req, res) => {
     const { email } = req.body;
 
     // Check if user exists
@@ -182,7 +222,7 @@ export const requestPasswordReset = asyncHandler(async(req, res) => {
     );
 });
 
-export const verifyPasswordResetOtp = asyncHandler(async(req, res) => {
+ const verifyPasswordResetOtp = asyncHandler(async(req, res) => {
     const { email, otp } = req.body;
 
     // Find user and validate OTP
@@ -207,7 +247,7 @@ export const verifyPasswordResetOtp = asyncHandler(async(req, res) => {
     );
 });
 
-export const resetPassword = asyncHandler(async(req, res) => {
+ const resetPassword = asyncHandler(async(req, res) => {
     const { email, newPassword } = req.body;
 
     // Find user and check if OTP was previously verified
@@ -229,4 +269,63 @@ export const resetPassword = asyncHandler(async(req, res) => {
         new ApiResponse(200, null, "Password reset successfully")
     );
 });
-export { signIn, signOut, signUp, verifyEmail };
+
+// In-memory store for OTP and user data (for demo; use Redis in production)
+const signupOtpStore = {};
+
+// Send OTP for signup (does not create user yet)
+const sendSignupOtp = asyncHandler(async (req, res) => {
+    const { fullName, email, password, phoneNumber } = req.body;
+    if (!fullName || !email || !password || !phoneNumber) {
+        throw new ApiError(400, "All fields are required");
+    }
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        throw new ApiError(409, "User with this email already exists");
+    }
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Store OTP and user data in memory (expires in 10 min)
+    signupOtpStore[email] = {
+        otp,
+        expires: Date.now() + 10 * 60 * 1000,
+        userData: { fullName, email, password, phoneNumber }
+    };
+    // Send OTP email
+    await sendMail(
+        email,
+        "Your KhojSewa Signup OTP",
+        `<p>Your OTP for KhojSewa signup is <strong>${otp}</strong>. It is valid for 10 minutes.</p>`
+    );
+    return res.status(200).json(new ApiResponse(200, { email }, "OTP sent to your email"));
+});
+
+// Verify OTP and create user
+const verifySignupOtp = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+        throw new ApiError(400, "Email and OTP are required");
+    }
+    const record = signupOtpStore[email];
+    if (!record || record.otp !== otp || record.expires < Date.now()) {
+        throw new ApiError(400, "Invalid or expired OTP");
+    }
+    // Create user with random avatar
+    const { fullName, password, phoneNumber } = record.userData;
+    const avatar = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(email)}`;
+    const user = await User.create({
+        fullName,
+        email,
+        password,
+        phoneNumber,
+        avatar,
+        isVerified: true
+    });
+    // Clean up
+    delete signupOtpStore[email];
+    return res.status(201).json(new ApiResponse(201, { user: { _id: user._id, fullName, email, phoneNumber, avatar } }, "Signup successful! You can now sign in."));
+});
+
+
+export { signIn, signOut, signUp, verifyEmail, resendEmailVerificationOtp, requestPasswordReset, verifyPasswordResetOtp, resetPassword, sendSignupOtp, verifySignupOtp };

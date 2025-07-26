@@ -37,16 +37,16 @@ const HeroSection = () => {
         </p>
         <div className="space-x-4">
           <a
-            href="/ItemFound"
+            href="/Search"
             className="bg-white text-sky-600 px-6 py-3 rounded font-semibold hover:bg-gray-100 shadow-md transition duration-300"
           >
             Post Lost Item
           </a>
           <a
-            href="/Search"
+            href="/ItemFound"
             className="border border-white px-6 py-3 rounded hover:bg-white hover:text-sky-600 font-semibold shadow-md transition duration-300"
           >
-            Search Items
+            Post Found Item
           </a>
         </div>
       </div>

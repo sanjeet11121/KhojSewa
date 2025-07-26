@@ -1,6 +1,7 @@
 import { useState } from "react";
 import ClipLoader from "react-spinners/ClipLoader";
 import logo from "../assets/khojsewa_logo.png";
+import { api } from '../config.js';
 
 function ForgotPassword() {
   const [step, setStep] = useState(1);
@@ -23,7 +24,7 @@ function ForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/auth/sendOtp', {
+      const res = await fetch(`${api}/api/v1/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -45,7 +46,7 @@ function ForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/auth/verifyOtp', {
+      const res = await fetch(`${api}/api/v1/auth/verify-reset-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp })
@@ -78,10 +79,10 @@ function ForgotPassword() {
 
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/auth/resetPassword', {
+      const res = await fetch(`${api}/api/v1/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: newPassword })
+        body: JSON.stringify({ email, newPassword })
       });
       const data = await res.json();
       if (!res.ok) {

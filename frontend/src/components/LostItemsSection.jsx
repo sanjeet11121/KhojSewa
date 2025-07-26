@@ -1,24 +1,52 @@
-const mockPosts = [
-  {
-    id: 1,
-    title: "Black Leather Wallet",
-    image: "https://media.istockphoto.com/id/477979778/photo/black-natural-leather-wallet-isolated-on-white-background.jpg?s=612x612&w=0&k=20&c=mmQlzOsmEu_QEB1K1ey6zbTYP40wUKp8p4a_qnnHnuw=",
-    location: "Patan Toilet",
-    date: "July 15, 2025",
-    postedBy: "Sanjit Mijar",
-  },
-  {
-    id: 2,
-    title: "Samsung Galaxy Phone",
-    image: "https://hips.hearstapps.com/vader-prod.s3.amazonaws.com/1738252275-galaxy-s24-fe-001-679b9fd18c58a.jpg?crop=0.959xw:0.959xh;0.0342xw,0.0261xh&resize=980:*",
-    location: "Patan Main Gate",
-    date: "July 14, 2025",
-    postedBy: "Ronit Ghimire",
-  },
-  // Add more mock posts as needed
-];
+import { useState, useEffect } from 'react';
+import { api } from '../config.js';
 
 export default function LostItemsSection() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchLostPosts = async () => {
+      try {
+        const res = await fetch(`${api}/api/v1/posts/lost`);
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.message || 'Failed to fetch posts');
+        } else {
+          setPosts(data.data || []);
+        }
+      } catch (err) {
+        setError('Network error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLostPosts();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="w-full bg-gradient-to-b from-purple-100 via-white to-white py-12 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading lost items...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="w-full bg-gradient-to-b from-purple-100 via-white to-white py-12 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          <p className="text-red-600">Error: {error}</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="w-full bg-gradient-to-b from-purple-100 via-white to-white py-12 px-4 sm:px-8">
       <div className="max-w-6xl mx-auto text-center mb-10">
@@ -29,42 +57,52 @@ export default function LostItemsSection() {
           Browse through the latest lost item posts in your area.
         </p>
       </div>
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-        {mockPosts.map((post) => (
-          <div
-            key={post.id}
-            className="bg-white shadow-xl rounded-2xl overflow-hidden transition-transform hover:scale-[1.02]"
-          >
-            <img
-              src={post.image}
-              alt={post.title}
-              className="w-full h-48 object-cover"
-            />
-            <div className="p-5 text-left">
-              <h3 className="text-xl font-semibold text-purple-800 mb-1">
-                {post.title}
-              </h3>
-              <p className="text-sm text-gray-600 mb-1">
-                <span className="font-medium">Location:</span> {post.location}
-              </p>
-              <p className="text-sm text-gray-600 mb-1">
-                <span className="font-medium">Date:</span> {post.date}
-              </p>
-              <p className="text-sm text-gray-600 mb-3">
-                <span className="font-medium">Posted by:</span> {post.postedBy}
-              </p>
-              <div className="flex gap-3">
-                <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 text-sm rounded-lg shadow-sm">
-                  Contact
-                </button>
-                <button className="border border-purple-600 text-purple-600 hover:bg-purple-50 px-4 py-2 text-sm rounded-lg shadow-sm">
-                  Share
-                </button>
+      
+      {posts.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">No lost items reported yet.</p>
+        </div>
+      ) : (
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
+          {posts.map((post) => (
+            <div
+              key={post._id}
+              className="bg-white shadow-xl rounded-2xl overflow-hidden transition-transform hover:scale-[1.02]"
+            >
+              <img
+                src={post.images && post.images.length > 0 ? post.images[0] : "https://via.placeholder.com/400x300?text=No+Image"}
+                alt={post.title}
+                className="w-full h-48 object-cover"
+              />
+              <div className="p-5 text-left">
+                <h3 className="text-xl font-semibold text-purple-800 mb-1">
+                  {post.title}
+                </h3>
+                <p className="text-sm text-gray-600 mb-1">
+                  <span className="font-medium">Location:</span> {post.locationLost}
+                </p>
+                <p className="text-sm text-gray-600 mb-1">
+                  <span className="font-medium">Date:</span> {new Date(post.lostDate).toLocaleDateString()}
+                </p>
+                <p className="text-sm text-gray-600 mb-1">
+                  <span className="font-medium">Category:</span> {post.category}
+                </p>
+                <p className="text-sm text-gray-600 mb-3">
+                  <span className="font-medium">Posted by:</span> {post.user?.fullName || 'Anonymous'}
+                </p>
+                <div className="flex gap-3">
+                  <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 text-sm rounded-lg shadow-sm">
+                    Contact
+                  </button>
+                  <button className="border border-purple-600 text-purple-600 hover:bg-purple-50 px-4 py-2 text-sm rounded-lg shadow-sm">
+                    Share
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
