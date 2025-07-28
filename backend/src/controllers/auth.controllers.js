@@ -143,8 +143,13 @@ const signIn = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Please verify your email first");
   }
 
+  // Generate tokens
+  console.log('Generating tokens for user ID:', user._id);
   const accessToken = generateAccessToken({ _id: user._id });
   const refreshToken = generateRefreshToken({ _id: user._id });
+  
+  console.log('Generated access token:', accessToken);
+  console.log('Generated refresh token:', refreshToken.substring(0, 10) + '...');
 
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
@@ -152,22 +157,32 @@ const signIn = asyncHandler(async (req, res) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict"
+    sameSite: "lax", // Changed from strict to lax for better cross-site compatibility
+    path: '/'
   };
+  
+  console.log('Cookie options:', cookieOptions);
 
+  console.log('Setting cookies and sending response');
+  
+  // Prepare response data
+  const responseData = {
+    user: {
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      phoneNumber: user.phoneNumber
+    },
+    accessToken
+  };
+  
+  console.log('Response data:', responseData);
+  
   return res
     .status(200)
     .cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 24 * 60 * 60 * 1000 })
     .cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 10 * 24 * 60 * 60 * 1000 })
-    .json(new ApiResponse(200, {
-      user: {
-        _id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        phoneNumber: user.phoneNumber
-      },
-      accessToken
-    }, "User logged in successfully"));
+    .json(new ApiResponse(200, responseData, "User logged in successfully"));
 });
 
 // SignOut Controller

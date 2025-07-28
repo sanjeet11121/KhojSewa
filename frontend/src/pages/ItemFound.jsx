@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from '../config.js';
 
 export default function FoundItemPage() {
   const navigate = useNavigate();
@@ -28,10 +29,93 @@ export default function FoundItemPage() {
     setFormData({ ...formData, images: files });
   };
 
-  const handleSubmit = (e) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting Found Item:", formData);
-    // TODO: send formData to your backend or API
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      // Get user data from localStorage
+      const userString = localStorage.getItem('user');
+      const token = localStorage.getItem('accessToken');
+      console.log('Token when submitting found item:', token);
+      
+      if (!token || !userString) {
+        setError('You must be logged in to post a found item');
+        setLoading(false);
+        setTimeout(() => {
+          navigate('/signin');
+        }, 2000);
+        return;
+      }
+      
+      // Parse user data
+      const user = JSON.parse(userString);
+
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.itemName);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('locationFound', formData.location);
+      formDataToSend.append('foundDate', formData.date);
+      formDataToSend.append('category', formData.category);
+
+      if (formData.images && formData.images.length > 0) {
+        formDataToSend.append('image', formData.images[0]); // Only first image for found posts
+      }
+      
+      console.log('FormData fields:');
+      for (let pair of formDataToSend.entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
+
+      // Log the token to verify its format
+      console.log('Token format check:', token);
+      
+      // Check if token already has Bearer prefix
+      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      console.log('Final auth token being sent:', authToken);
+      
+      const res = await fetch(`${api}/api/v1/posts/found`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authToken
+        },
+        body: formDataToSend,
+        credentials: 'include' // Include cookies in the request
+      });
+      
+      console.log('Response status:', res.status);
+
+      const data = await res.json();
+      console.log('Response data:', data);
+      
+      if (!res.ok) {
+        console.error('Error response:', data);
+        setError(data.message || 'Failed to post found item');
+      } else {
+        setSuccess('Found item posted successfully!');
+        setFormData({
+          itemName: '',
+          category: '',
+          location: '',
+          date: '',
+          description: '',
+          images: [],
+        });
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Error details:', err);
+      setError('Network error: ' + (err.message || 'Unknown error'));
+    }
+    setLoading(false);
   };
 
   return (
@@ -40,6 +124,9 @@ export default function FoundItemPage() {
         <h2 className="text-3xl font-bold text-purple-700 text-center mb-6">
           Report a Found Item
         </h2>
+        
+        {error && <div className="text-red-500 text-sm mb-4 text-center">{error}</div>}
+        {success && <div className="text-green-600 text-sm mb-4 text-center">{success}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -145,11 +232,12 @@ export default function FoundItemPage() {
 
           <div className="text-center">
             <button
-              type="submit"
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition"
-            >
-              Submit Found Item
-            </button>
+            type="submit"
+            disabled={loading}
+            className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+          >
+            {loading ? 'Posting...' : 'Submit Found Item'}
+          </button>
           </div>
         </form>
       </div>

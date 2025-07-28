@@ -44,10 +44,14 @@ const createFoundPost = asyncHandler(async(req, res) => {
 
 // Lost Post Controllers
 const createLostPost = asyncHandler(async(req, res) => {
-    const { itemName, description, location, date, category } = req.body;
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+    
+    // Extract fields with correct names from request body
+    const { title, description, locationLost, lostDate, category } = req.body;
     const userId = req.user._id;
 
-    if (!itemName || !description || !location || !date) {
+    if (!title || !description || !locationLost || !lostDate) {
         throw new ApiError(400, "All fields are required");
     }
 
@@ -63,14 +67,16 @@ const createLostPost = asyncHandler(async(req, res) => {
     }
 
     const post = await LostPost.create({
-        title: itemName,
+        title,
         description,
         images: imageUrls,
-        locationLost: location,
-        lostDate: date,
+        locationLost,
+        lostDate,
         category: category || 'Other',
         user: userId
     });
+    
+    console.log('Created post:', post);
 
     return res.status(201).json(
         new ApiResponse(201, post, "Lost post created successfully")

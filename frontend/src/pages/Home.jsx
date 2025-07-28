@@ -7,6 +7,8 @@ import Navbar from "../components/Navbar";
 import LostItemsSection from "../components/LostItemsSection";
 
 
+
+
 const Home = () => {
   return (
     <div className="min-h-screen">

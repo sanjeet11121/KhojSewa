@@ -4,6 +4,7 @@ import ClipLoader from "react-spinners/ClipLoader";
 import logo from "../assets/khojsewa_logo.png";
 import signinImg from "../assets/signin.png";
 import { Link } from "react-router-dom";
+import { api } from '../config.js';
 
 function SignIn() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ function SignIn() {
     setSuccess('');
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/auth/signin', {
+      const res = await fetch(`${api}/api/v1/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -35,8 +36,23 @@ function SignIn() {
         setError(data.message || 'Sign in failed');
       } else {
         setSuccess('Sign in successful!');
+        console.log('Received token:', data.data?.accessToken);
+        
+        console.log('Sign in successful, received data:', data);
+        
+        // Store token with Bearer prefix
+        const tokenWithBearer = `Bearer ${data.data?.accessToken}`;
+        console.log('Token with Bearer prefix:', tokenWithBearer);
+        
         localStorage.setItem('user', JSON.stringify(data.data?.user));
-        localStorage.setItem('accessToken', data.data?.accessToken);
+        localStorage.setItem('accessToken', tokenWithBearer);
+        
+        // Verify token was stored
+        const storedToken = localStorage.getItem('accessToken');
+        const storedUser = localStorage.getItem('user');
+        console.log('Stored token:', storedToken);
+        console.log('Stored user:', storedUser);
+        
         setTimeout(() => {
           navigate('/');
         }, 1000);

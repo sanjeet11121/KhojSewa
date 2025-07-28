@@ -18,12 +18,16 @@ const LostItemPage = () => {
 
   const categories = ['Electronics', 'Stationeries', 'Clothing', 'Food', 'Toys', 'Other'];
 
+  
+
   // Check authentication
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
       navigate('/signin');
     }
+    // Log token for debugging
+    console.log('Token available:', !!token);
   }, [navigate]);
 
   const handleChange = (e) => {
@@ -43,32 +47,62 @@ const LostItemPage = () => {
     setLoading(true);
 
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
+      // Get user data from localStorage
+      const userString = localStorage.getItem('user');
       const token = localStorage.getItem('accessToken');
+      console.log('Token when submitting:', token);
+      
+      if (!token || !userString) {
+        setError('You must be logged in to post a lost item');
+        setLoading(false);
+        setTimeout(() => {
+          navigate('/signin');
+        }, 2000);
+        return;
+      }
+      
+      // Parse user data
+      const user = JSON.parse(userString);
 
       const formDataToSend = new FormData();
-      formDataToSend.append('itemName', formData.itemName);
+      formDataToSend.append('title', formData.itemName); // Changed from 'itemName' to 'title' to match backend
       formDataToSend.append('category', formData.category);
-      formDataToSend.append('location', formData.location);
-      formDataToSend.append('date', formData.date);
+      formDataToSend.append('locationLost', formData.location); // Changed from 'location' to 'locationLost' to match backend
+      formDataToSend.append('lostDate', formData.date); // Changed from 'date' to 'lostDate' to match backend
       formDataToSend.append('description', formData.description);
-      formDataToSend.append('userId', user._id);
 
-      // Append images
-      formData.images.forEach((image, index) => {
+      formData.images.forEach((image) => {
         formDataToSend.append('images', image);
       });
+      
+      console.log('FormData fields:');
+      for (let pair of formDataToSend.entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
 
+      // Log the token to verify its format
+      console.log('Token format check:', token);
+      
+      // Check if token already has Bearer prefix
+      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      console.log('Final auth token being sent:', authToken);
+      
       const res = await fetch(`${api}/api/v1/posts/lost`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': authToken
         },
-        body: formDataToSend
+        body: formDataToSend,
+        credentials: 'include' // Include cookies in the request
       });
+      
+      console.log('Response status:', res.status);
 
       const data = await res.json();
+      console.log('Response data:', data);
+      
       if (!res.ok) {
+        console.error('Error response:', data);
         setError(data.message || 'Failed to post lost item');
       } else {
         setSuccess('Lost item posted successfully!');
@@ -85,7 +119,8 @@ const LostItemPage = () => {
         }, 2000);
       }
     } catch (err) {
-      setError('Network error');
+      console.error('Error details:', err);
+      setError('Network error: ' + (err.message || 'Unknown error'));
     }
     setLoading(false);
   };
@@ -199,7 +234,6 @@ const LostItemPage = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Upload Images (Optional, Max 3)
                 </label>
-                
                 <div className="flex items-center">
                   <label
                     htmlFor="imageUpload"
@@ -207,7 +241,6 @@ const LostItemPage = () => {
                   >
                     Choose Files
                   </label>
-
                   <input
                     id="imageUpload"
                     type="file"
@@ -244,6 +277,9 @@ const LostItemPage = () => {
             </form>
           </div>
         </div>
+
+       
+
       </div>
     </div>
   );

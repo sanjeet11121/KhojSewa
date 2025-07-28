@@ -70,7 +70,7 @@ export default function LostItemsSection() {
               className="bg-white shadow-xl rounded-2xl overflow-hidden transition-transform hover:scale-[1.02]"
             >
               <img
-                src={post.images && post.images.length > 0 ? post.images[0] : "https://via.placeholder.com/400x300?text=No+Image"}
+                src={post.images && post.images.length > 0 ? post.images[0] : require("../assets/no-image.png")}
                 alt={post.title}
                 className="w-full h-48 object-cover"
               />
