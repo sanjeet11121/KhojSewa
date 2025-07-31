@@ -3,7 +3,8 @@ import AdminLayout from "./admin/AdminLayout";
 import Dashboard from "./admin/pages/Dashboard";
 import Posts from "./admin/pages/Posts.jsx";
 import Users from "./admin/pages/Users";
-import Notifications from "./admin/pages/Notifications"; // ✅ Import Notifications
+import Notifications from "./admin/pages/Notifications"; 
+import InappropriatePost from "./admin/pages/InappropriatePost"; 
 import Home from "./pages/Home.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import SignIn from "./pages/SignIn.jsx";
@@ -31,6 +32,7 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="posts" element={<Posts />} />
           <Route path="notifications" element={<Notifications />} />
+          <Route path="inappropriatePost" element={<InappropriatePost />} />
         </Route>    
       </Routes>
     </Router>
