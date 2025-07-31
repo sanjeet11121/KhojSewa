@@ -9,9 +9,10 @@ import Home from "./pages/Home.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import ItemFound from "./pages/ItemFound.jsx"; 
-import Search from "./pages/Search.jsx"
-import ForgotPassword from "./pages/forgot-password.jsx"; // ✅ New Import
+import Search from "./pages/Search.jsx";
+import ForgotPassword from "./pages/forgot-password.jsx";
 import AboutUs from "./pages/AboutUs.jsx";
+import UserDetailPage from "./admin/pages/UserDetailPage";
 
 function App() {
   return (
@@ -23,13 +24,14 @@ function App() {
         <Route path="/signin" element={<SignIn />} />
         <Route path="/ItemFound" element={<ItemFound />} />
         <Route path="/Search" element={<Search />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} /> {/* ✅ New Route */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/about" element={<AboutUs />} />
 
         {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} /> 
           <Route path="users" element={<Users />} />
+          <Route path="users/:id" element={<UserDetailPage />} /> {/* ✅ New Route for individual user */}
           <Route path="posts" element={<Posts />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="inappropriatePost" element={<InappropriatePost />} />

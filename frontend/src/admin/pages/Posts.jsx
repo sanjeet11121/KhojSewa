@@ -1,3 +1,7 @@
+import CardComponent from "../components/cardComponent";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
 const postsData = [
   { id: 1, title: "Lost Phone", status: "Pending" },
   { id: 2, title: "Found Wallet", status: "Resolved" },
