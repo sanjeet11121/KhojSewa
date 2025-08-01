@@ -24,5 +24,9 @@ adminRouter.patch("/user/:userId/verify", manuallyVerifyUser);
 adminRouter.patch("/user/:userId/status", toggleUserStatus);
 adminRouter.delete("/user/:userId", deleteUserById);
 // adminRouter.get("/user-post-stats", getPostStatsByUser);
-
+//Active users 
+//total no of users 
+//software inquires 
+//lost and found ratio data 
+//total no of lost post and found post
 export default adminRouter;

@@ -13,6 +13,7 @@ import Search from "./pages/Search.jsx";
 import ForgotPassword from "./pages/forgot-password.jsx";
 import AboutUs from "./pages/AboutUs.jsx";
 import UserDetailPage from "./admin/pages/UserDetailPage";
+import NotFound from "./pages/NotFound.jsx";
 
 function App() {
   return (
@@ -35,7 +36,8 @@ function App() {
           <Route path="posts" element={<Posts />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="inappropriatePost" element={<InappropriatePost />} />
-        </Route>    
+        </Route>  
+         <Route path="*" element={<NotFound />} />  
       </Routes>
     </Router>
   );

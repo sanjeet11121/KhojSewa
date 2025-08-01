@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../config.js';
+import noImage from "../assets/no-image.png";
 
 export default function LostItemsSection() {
   const [posts, setPosts] = useState([]);
@@ -70,8 +71,8 @@ export default function LostItemsSection() {
               className="bg-white shadow-xl rounded-2xl overflow-hidden transition-transform hover:scale-[1.02]"
             >
               <img
-                src={post.images && post.images.length > 0 ? post.images[0] : require("../assets/no-image.png")}
-                alt={post.title}
+                src={post.images && post.images.length > 0 ? post.images[0] : noImage}
+                alt={post.images && post.images.length > 0 ? post.title : "No image available"}
                 className="w-full h-48 object-cover"
               />
               <div className="p-5 text-left">
