@@ -1,7 +1,7 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import CardComponent from "../components/cardComponent";
-import { users } from "../userData";  // <-- same shared data
+import { users } from "../../data/userData"; 
 
 export default function UserDetailPage() {
   const { id } = useParams();

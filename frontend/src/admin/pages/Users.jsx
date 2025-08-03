@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { FaStar } from "react-icons/fa";
+import { users as initialUsers } from "../../data/userData";
+import { posts } from "../../data/post"; 
 import CardComponent from "../components/cardComponent";
+import { FaStar } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
-import { users as initialUsers } from "../../admin/userData";
 
 function StarRating({ rating }) {
   const stars = Array.from({ length: 5 }, (_, i) => i + 1);
@@ -26,8 +27,14 @@ export default function Users() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUserId, setSelectedUserId] = useState(null);
 
-  const usersPerPage = 5;
-  const filteredUsers = users.filter((user) =>
+  // Calculate posts count for each user dynamically
+  const usersWithPostCount = users.map(user => {
+    const userPostCount = posts.filter(post => post.userId === user.id).length;
+    return {...user, posts: userPostCount};
+  });
+
+  const usersPerPage = 8;
+  const filteredUsers = usersWithPostCount.filter((user) =>
     user.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -76,13 +83,14 @@ export default function Users() {
               <th className="p-2 md:p-3 text-left">Name</th>
               <th className="p-2 md:p-3 text-left">Status</th>
               <th className="p-2 md:p-3 text-center">Rating</th>
+              <th className="p-2 md:p-3 text-center">Posts</th> {/* Added posts column */}
               <th className="p-2 md:p-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {currentUsers.length === 0 ? (
               <tr>
-                <td colSpan="4" className="text-center p-4 text-gray-500">
+                <td colSpan="5" className="text-center p-4 text-gray-500">
                   No users found.
                 </td>
               </tr>
@@ -98,6 +106,7 @@ export default function Users() {
                     <td className="p-3 text-center">
                       <StarRating rating={user.rating} />
                     </td>
+                    <td className="p-3 text-center font-semibold">{user.posts}</td>
                     <td className="p-3 text-center">
                       <div className="flex justify-center gap-2">
                         <button
@@ -135,7 +144,7 @@ export default function Users() {
                   <AnimatePresence>
                     {selectedUserId === user.id && (
                       <tr>
-                        <td colSpan="4" className="p-0">
+                        <td colSpan="5" className="p-0">
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
