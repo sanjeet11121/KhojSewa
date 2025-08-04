@@ -6,6 +6,7 @@ import {
     manuallyVerifyUser,
     toggleUserStatus,
     getUserStats,
+    getAdminStats,
     // getPostStatsByUser
 } from '../controllers/admin.controllers.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
@@ -29,4 +30,5 @@ adminRouter.delete("/user/:userId", deleteUserById);
 //software inquires 
 //lost and found ratio data 
 //total no of lost post and found post
+adminRouter.get('/stats', authenticate, getAdminStats);
 export default adminRouter;

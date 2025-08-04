@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  isActive:{
+    type: Boolean,
+    
+  },
   posts: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Post'

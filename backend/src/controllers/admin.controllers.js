@@ -97,6 +97,49 @@ export const getUserStats = asyncHandler(async (req, res) => {
     }, "User statistics fetched"));
 });
 
+
+
+// Admin Dashboard Stats
+export const getAdminStats = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+
+    // Fallback: users active in last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const activeUsers = await User.countDocuments({ updatedAt: { $gte: thirtyDaysAgo } });
+
+    const totalInquiries = await Inquiry.countDocuments();
+
+    const totalLostPosts = await Post.countDocuments({ type: 'lost' });
+    const totalFoundPosts = await Post.countDocuments({ type: 'found' });
+
+    const lostFoundRatio = totalLostPosts + totalFoundPosts === 0
+      ? 0
+      : (totalFoundPosts / (totalLostPosts + totalFoundPosts)).toFixed(2);
+
+    return res.status(200).json({
+      success: true,
+      message: "Stats retrieved successfully",
+      data: {
+        totalUsers,
+        activeUsers,
+        totalInquiries,
+        totalLostPosts,
+        totalFoundPosts,
+        lostFoundRatio
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch stats",
+      error: error.message
+    });
+  }
+};
+
+
 // //=====================Posts haru fetch garne methodsss================
 // export const getPostStatsByUser = asyncHandler(async (req, res) => {
 //     const stats = await Post.aggregate([
