@@ -14,6 +14,7 @@ import ForgotPassword from "./pages/forgot-password.jsx";
 import AboutUs from "./pages/AboutUs.jsx";
 import UserDetailPage from "./admin/pages/UserDetailPage";
 import NotFound from "./pages/NotFound.jsx";
+import UserInterface from "./pages/User/UserInterface.jsx";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Route path="/Search" element={<Search />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/about" element={<AboutUs />} />
+        <Route path="/UserInterface" element={<UserInterface />} />
 
         {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>
