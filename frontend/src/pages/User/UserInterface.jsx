@@ -12,7 +12,7 @@ const UserAccount = () => {
     }
 
     // Fetch user's posts (replace with your API endpoint)
-    fetch("/api/user/posts", {
+    fetch("/api/v1/users/posts", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       },
@@ -29,8 +29,8 @@ const UserAccount = () => {
 
   const handleUpdate = () => {
     // Send update to backend
-    fetch("/api/user/update", {
-      method: "POST",
+    fetch("/api/v1/users/update", {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,

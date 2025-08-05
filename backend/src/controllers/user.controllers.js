@@ -84,3 +84,126 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
 
   res.status(200).json(new ApiResponse(200, user, 'Avatar uploaded successfully'));
 });
+
+
+export const getUserLostPosts = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+    .select('-password -refreshToken')
+    .populate('lostPosts');
+
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, user.lostPosts, 'Lost posts fetched successfully'));
+});
+
+export const updateUserLostPosts = asyncHandler(async (req, res) => {
+  const { postId } = req.body;
+
+  const user = await User.findById(req.user._id);
+  if (!user) {  
+    throw new ApiError(404, 'User not found');
+  }
+  const post = user.lostPosts.id(postId);
+  if (!post) {
+    throw new ApiError(404, 'Post not found');
+  }
+  post.remove();
+  await user.save();
+  res.status(200).json(new ApiResponse(200, null, 'Lost post removed successfully'));
+}
+);
+
+export const deleteUserLostPosts = asyncHandler(async (req, res) => {
+  const { postId } = req.body;
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+  const post = user.lostPosts.id(postId);
+  if (!post) {
+    throw new ApiError(404, 'Post not found');
+  }
+  post.remove();
+  await user.save();
+  res.status(200).json(new ApiResponse(200, null, 'Lost post deleted successfully'));
+}
+);
+
+
+export const getUserFoundPosts = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+    .select('-password -refreshToken')  
+    .populate('foundPosts');
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  } 
+  res.status(200).json(new ApiResponse(200, user.foundPosts, 'Found posts fetched successfully'));
+}
+);  
+
+export const updateUserFoundPosts = asyncHandler(async (req, res) => {
+  const { postId } = req.body;
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  const post = user.foundPosts.id(postId);
+  if (!post) {
+    throw new ApiError(404, 'Post not found');
+  }
+
+  post.remove();
+  await user.save();
+
+  res.status(200).json(new ApiResponse(200, null, 'Found post removed successfully'));
+});
+
+ export const deleteUserFoundPosts = asyncHandler(async (req, res) => {
+  const { postId } = req.body;
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  const post = user.foundPosts.id(postId);
+  if (!post) {
+    throw new ApiError(404, 'Post not found');
+  }
+
+  post.remove();
+  await user.save();
+
+  res.status(200).json(new ApiResponse(200, null, 'Found post deleted successfully'));
+});
+
+export const checkUserActiveStatus = asyncHandler(async (req, res) => {
+  // Ensure user is authenticated
+  if (!req.user || !req.user._id) {
+    throw new ApiError(401, 'Unauthorized: User not authenticated');
+  }
+
+  // Find the user
+  const user = await User.findById(req.user._id).select('isActive').lean();
+
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  // Respond with active/inactive status
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        isActive: user.isActive,
+        status: user.isActive ? 'Active' : 'Inactive'
+      },
+      'User status fetched successfully'
+    )
+  );
+});
