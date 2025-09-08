@@ -13,10 +13,14 @@ export const authenticate = asyncHandler(async (req, res, next) => {
 
         // Prefer Authorization header
         if (req.headers && req.headers.authorization) {
-            const authHeader = req.headers.authorization;
+            let authHeader = req.headers.authorization;
             console.log('Auth header found:', authHeader);
             if (authHeader.startsWith('Bearer ')) {
                 token = authHeader.substring(7);
+                // Remove extra 'Bearer ' if present
+                if (token.startsWith('Bearer ')) {
+                    token = token.substring(7);
+                }
                 console.log('Token extracted from header:', token);
             } else {
                 console.log('Malformed auth header:', authHeader);

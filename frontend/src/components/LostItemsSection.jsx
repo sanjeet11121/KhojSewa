@@ -95,7 +95,22 @@ export default function LostItemsSection() {
                   <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 text-sm rounded-lg shadow-sm">
                     Contact
                   </button>
-                  <button className="border border-purple-600 text-purple-600 hover:bg-purple-50 px-4 py-2 text-sm rounded-lg shadow-sm">
+                  <button
+                    className="border border-purple-600 text-purple-600 hover:bg-purple-50 px-4 py-2 text-sm rounded-lg shadow-sm"
+                    onClick={() => {
+                      const shareUrl = `${window.location.origin}/post/lost/${post._id}`;
+                      if (navigator.share) {
+                        navigator.share({
+                          title: post.title,
+                          text: `Lost item: ${post.title}`,
+                          url: shareUrl
+                        });
+                      } else {
+                        navigator.clipboard.writeText(shareUrl);
+                        alert('Post link copied to clipboard!');
+                      }
+                    }}
+                  >
                     Share
                   </button>
                 </div>

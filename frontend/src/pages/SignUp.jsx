@@ -21,7 +21,7 @@ function SignUp() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [showOtpForm, setShowOtpForm] = useState(false);
   const [userEmail, setUserEmail] = useState('');
-  const [color] = useState("linear-gradient(to right, #8a2be2, #9400d3)");
+  const [color] = useState("#8a2be2"); // ClipLoader accepts color codes, not gradients
   const navigate = useNavigate();
 
   const override = {
@@ -40,6 +40,7 @@ function SignUp() {
     setError('');
   };
 
+  // Send OTP and initiate sign-up process
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -62,11 +63,13 @@ function SignUp() {
           password: form.password
         })
       });
+
       const data = await res.json();
+
       if (!res.ok) {
         setError(data.message || 'Failed to send OTP');
       } else {
-        setSuccess('OTP sent! Please check your email for verification.');
+        setSuccess('OTP sent to your email! Please verify.');
         setUserEmail(form.email);
         setShowOtpForm(true);
       }
@@ -76,6 +79,7 @@ function SignUp() {
     setLoading(false);
   };
 
+  // Verify OTP and complete sign-up
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -91,11 +95,16 @@ function SignUp() {
           otp: otp
         })
       });
+
       const data = await res.json();
+
       if (!res.ok) {
         setError(data.message || 'OTP verification failed');
       } else {
         setSuccess('Signup successful! Redirecting to sign in...');
+        if (data?.data?.user) {
+          localStorage.setItem('user', JSON.stringify(data.data.user));
+        }
         setTimeout(() => {
           navigate('/signin');
         }, 1500);
@@ -117,11 +126,11 @@ function SignUp() {
       const res = await fetch(`${api}/api/v1/auth/resend-verification-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail
-        })
+        body: JSON.stringify({ email: userEmail })
       });
+
       const data = await res.json();
+
       if (!res.ok) {
         setError(data.message || 'Failed to resend OTP');
       } else {
@@ -133,7 +142,7 @@ function SignUp() {
     setOtpLoading(false);
   };
 
-  // OTP Verification Form
+  // OTP Verification UI
   if (showOtpForm) {
     return (
       <div className="w-full h-screen bg-gradient-to-b from-purple-200 to-purple-100 flex justify-center items-center">
@@ -161,7 +170,7 @@ function SignUp() {
                 required
               />
             </div>
-            
+
             <button
               type="submit"
               className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl transition mb-4 flex items-center justify-center"
@@ -201,6 +210,7 @@ function SignUp() {
     );
   }
 
+  // Signup UI
   return (
     <div className="w-full h-screen bg-gradient-to-b from-purple-200 to-purple-100 flex justify-center items-center">
       <div className="w-[90%] lg:max-w-[60%] h-[650px] bg-white rounded-2xl flex overflow-hidden border-2 border-purple-300">

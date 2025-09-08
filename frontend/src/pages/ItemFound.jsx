@@ -11,6 +11,8 @@ export default function FoundItemPage() {
     }
   }, [navigate]);
 
+  // Use backend enum values (lowercase)
+  const categories = ['electronics', 'stationeries', 'clothing', 'food', 'toys', 'other'];
   const [formData, setFormData] = useState({
     itemName: "",
     location: "",
@@ -19,14 +21,17 @@ export default function FoundItemPage() {
     category: "",
     images: [],
   });
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const fileInputRef = useState(null);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files).slice(0, 3); // max 3 images
-    setFormData({ ...formData, images: files });
+  const files = Array.from(e.target.files).slice(0, 3); // max 3 images
+  setFormData({ ...formData, images: files });
+  setImagePreviews(files.map(file => URL.createObjectURL(file)));
   };
 
   const [loading, setLoading] = useState(false);
@@ -43,8 +48,6 @@ export default function FoundItemPage() {
       // Get user data from localStorage
       const userString = localStorage.getItem('user');
       const token = localStorage.getItem('accessToken');
-      console.log('Token when submitting found item:', token);
-      
       if (!token || !userString) {
         setError('You must be logged in to post a found item');
         setLoading(false);
@@ -53,50 +56,41 @@ export default function FoundItemPage() {
         }, 2000);
         return;
       }
-      
-      // Parse user data
-      const user = JSON.parse(userString);
-
-      const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.itemName);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('locationFound', formData.location);
-      formDataToSend.append('foundDate', formData.date);
-      formDataToSend.append('category', formData.category);
-
-      if (formData.images && formData.images.length > 0) {
-        formDataToSend.append('image', formData.images[0]); // Only first image for found posts
+      // Validation: category and image required
+      if (!formData.category || !categories.includes(formData.category.toLowerCase())) {
+        setError('Please select a valid category.');
+        setLoading(false);
+        return;
       }
-      
-      console.log('FormData fields:');
-      for (let pair of formDataToSend.entries()) {
-        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      if (!formData.images || formData.images.length === 0) {
+        setError('Image is required for found posts.');
+        setLoading(false);
+        return;
       }
-
-      // Log the token to verify its format
-      console.log('Token format check:', token);
-      
-      // Check if token already has Bearer prefix
+          // Prepare form data
+          const formDataToSend = new FormData();
+          formDataToSend.append('title', formData.itemName);
+          formDataToSend.append('description', formData.description);
+          formDataToSend.append('locationFound', formData.location);
+          formDataToSend.append('foundDate', formData.date);
+          formDataToSend.append('category', formData.category.toLowerCase());
+          // Append up to 3 images
+          formData.images.forEach((img) => {
+            formDataToSend.append('images', img);
+      });
+      // Auth header
       const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-      console.log('Final auth token being sent:', authToken);
-      
       const res = await fetch(`${api}/api/v1/posts/found`, {
         method: 'POST',
         headers: {
           'Authorization': authToken
         },
         body: formDataToSend,
-        credentials: 'include' // Include cookies in the request
+        credentials: 'include'
       });
-      
-      console.log('Response status:', res.status);
-
       const data = await res.json();
-      console.log('Response data:', data);
-      
       if (!res.ok) {
-        console.error('Error response:', data);
-        setError(data.message || 'Failed to post found item');
+        setError(data.message || data.error || (data.errors && data.errors[0]?.msg) || 'Failed to post found item');
       } else {
         setSuccess('Found item posted successfully!');
         setFormData({
@@ -107,12 +101,13 @@ export default function FoundItemPage() {
           description: '',
           images: [],
         });
+        setImagePreviews([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         setTimeout(() => {
           navigate('/');
         }, 2000);
       }
     } catch (err) {
-      console.error('Error details:', err);
       setError('Network error: ' + (err.message || 'Unknown error'));
     }
     setLoading(false);
@@ -124,10 +119,8 @@ export default function FoundItemPage() {
         <h2 className="text-3xl font-bold text-purple-700 text-center mb-6">
           Report a Found Item
         </h2>
-        
         {error && <div className="text-red-500 text-sm mb-4 text-center">{error}</div>}
         {success && <div className="text-green-600 text-sm mb-4 text-center">{success}</div>}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -156,12 +149,9 @@ export default function FoundItemPage() {
               className="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
             >
               <option value="">Select a category</option>
-              <option value="Electronics">Electronics</option>
-              <option value="Wallet">Wallet</option>
-              <option value="Documents">Documents</option>
-              <option value="Clothing">Clothing</option>
-              <option value="Jewelry">Jewelry</option>
-              <option value="Other">Other</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
+              ))}
             </select>
           </div>
 
@@ -211,30 +201,33 @@ export default function FoundItemPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Upload Images (Optional, Max 3)
+              Upload Images (Required, up to 3)
             </label>
             <label className="inline-block cursor-pointer px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-              Choose Images
+              Choose Image
               <input
                 type="file"
                 accept="image/*"
                 multiple
                 onChange={handleImageUpload}
                 className="hidden"
+                ref={fileInputRef}
               />
             </label>
-            {formData.images.length > 0 && (
-              <p className="mt-2 text-sm text-gray-600">
-                {formData.images.length} image(s) selected.
-              </p>
+            {imagePreviews.length > 0 && (
+              <div className="mt-2 flex gap-2">
+                {imagePreviews.map((src, idx) => (
+                  <img key={idx} src={src} alt={`preview-${idx}`} className="h-20 w-20 object-cover rounded border" />
+                ))}
+              </div>
             )}
           </div>
 
           <div className="text-center">
             <button
             type="submit"
-            disabled={loading}
-            className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+            disabled={loading || !formData.images || formData.images.length === 0}
+            className={`bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition disabled:opacity-50 ${(!formData.images || formData.images.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {loading ? 'Posting...' : 'Submit Found Item'}
           </button>

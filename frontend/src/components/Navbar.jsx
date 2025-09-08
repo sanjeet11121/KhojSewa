@@ -101,11 +101,12 @@ function Navbar() {
                       <div className="flex items-center space-x-4 mb-4">
                         <img src={avatarUrl} alt="avatar" className="h-10 w-10 rounded-full border" />
                         <div>
-                          <p className="font-semibold">{user?.name || "User"}</p>
-                          <p className="text-sm text-gray-500">{user?.phone || "No phone"}</p>
+                          <p className="font-semibold">{user?.fullName || user?.name || "User"}</p>
+                          <p className="text-sm text-gray-500">{user?.phoneNumber || user?.phone || "No phone"}</p>
                         </div>
                       </div>
                       <button onClick={() => navigate('/User/UserInterface')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded">Manage Account</button>
+                      <button onClick={() => navigate('/user/dashboard')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">User Dashboard</button>
                       <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">Sign Out</button>
                     </div>
                   )}
@@ -157,6 +158,7 @@ function Navbar() {
                   </div>
                 </div>
                 <button onClick={() => navigate('/User/UserInterface')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded">Manage Account</button>
+                <button onClick={() => navigate('/user/dashboard')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">User Dashboard</button>
                 <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">Sign Out</button>
               </div>
             </div>

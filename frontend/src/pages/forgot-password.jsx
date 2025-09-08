@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ClipLoader from "react-spinners/ClipLoader";
 import logo from "../assets/khojsewa_logo.png";
-import { api } from '../config.js';
+import { api } from "../config.js";
 
 function ForgotPassword() {
   const [step, setStep] = useState(1);

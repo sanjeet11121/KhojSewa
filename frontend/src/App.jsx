@@ -15,11 +15,16 @@ import AboutUs from "./pages/AboutUs.jsx";
 import UserDetailPage from "./admin/pages/UserDetailPage";
 import NotFound from "./pages/NotFound.jsx";
 import UserInterface from "./pages/User/UserInterface.jsx";
+import UserPortal from "./pages/user/UserPortal.jsx";
+import UserDashboard from "./pages/user/UserDashboard.jsx";
+import EditPost from "./pages/user/EditPost.jsx";
+import PostDetail from "./pages/PostDetail.jsx";
+import Recommendations from "./pages/user/Recommendations.jsx";
 
 function App() {
   return (
     <Router>
-      <Routes>
+  <Routes>
         {/* Public Pages */}
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={<SignUp />} />
@@ -29,6 +34,8 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/UserInterface" element={<UserInterface />} />
+        <Route path="/user" element={<UserPortal />} />
+        <Route path="/user/dashboard" element={<UserDashboard />} />
 
         {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>
@@ -39,6 +46,10 @@ function App() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="inappropriatePost" element={<InappropriatePost />} />
         </Route>  
+  <Route path="user/edit/:postId/:type" element={<EditPost />} />
+  <Route path="post/:type/:postId" element={<PostDetail />} />
+        <Route path="user/recommendations/:postId" element={<Recommendations />} />
+        <Route path="user/claims/:postId" element={<div style={{padding:'2rem',textAlign:'center'}}><h2>Claims Page Coming Soon!</h2></div>} />
          <Route path="*" element={<NotFound />} />  
       </Routes>
 
