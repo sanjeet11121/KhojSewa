@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const UserAccount = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
 
@@ -46,6 +48,12 @@ const UserAccount = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-indigo-100 p-6">
       <div className="max-w-4xl mx-auto bg-white p-6 rounded shadow-md">
         <h1 className="text-2xl font-bold mb-4 text-purple-700">Account Settings</h1>
+        <button
+          onClick={() => navigate('/user')}
+          className="bg-indigo-500 text-white px-4 py-2 rounded mb-6 hover:bg-indigo-600"
+        >
+          Go to User Dashboard
+        </button>
         {user && (
           <div className="grid gap-4">
             <div>
