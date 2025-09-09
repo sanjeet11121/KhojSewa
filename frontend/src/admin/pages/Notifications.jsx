@@ -1,25 +1,33 @@
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { getNotificationsApi, postNotificationApi } from "../services/adminApi";
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState([
-    { id: 1, message: "New item reported lost.", time: "2 mins ago" },
-    { id: 2, message: "User JohnDoe posted a found item.", time: "10 mins ago" },
-    { id: 3, message: "3 posts pending review.", time: "1 hour ago" },
-  ]);
-
+  const [notifications, setNotifications] = useState([]);
   const [newMessage, setNewMessage] = useState("");
 
-  const handlePostNotification = () => {
+  // Fetch notifications from backend
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const data = await getNotificationsApi();
+        setNotifications(data);
+      } catch (error) {
+        console.error("Failed to fetch notifications", error);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  const handlePostNotification = async () => {
     if (!newMessage.trim()) return;
 
-    const newNotification = {
-      id: Date.now(),
-      message: newMessage,
-      time: "Just now",
-    };
-
-    setNotifications([newNotification, ...notifications]);
-    setNewMessage("");
+    try {
+      const newNote = await postNotificationApi(newMessage);
+      setNotifications([newNote, ...notifications]);
+      setNewMessage("");
+    } catch (error) {
+      console.error("Failed to post notification", error);
+    }
   };
 
   return (
@@ -46,9 +54,11 @@ export default function Notifications() {
       {/* Notifications List */}
       <ul className="bg-white shadow rounded p-4">
         {notifications.map((note) => (
-          <li key={note.id} className="border-b last:border-b-0 py-2">
+          <li key={note._id} className="border-b last:border-b-0 py-2">
             <p className="font-medium">{note.message}</p>
-            <span className="text-sm text-gray-500">{note.time}</span>
+            <span className="text-sm text-gray-500">
+              {new Date(note.createdAt).toLocaleString()}
+            </span>
           </li>
         ))}
       </ul>

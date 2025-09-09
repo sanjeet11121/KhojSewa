@@ -1,62 +1,70 @@
+import { useEffect, useState } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar
 } from "recharts";
+import { getAdminStats } from "../services/adminApi";
 
-const lineData = [
-  { month: "Jan", found: 10, lost: 5 },
-  { month: "Feb", found: 20, lost: 10 },
-  { month: "Mar", found: 15, lost: 12 },
-  { month: "Apr", found: 30, lost: 18 },
-];
-
-const pieData = [
-  { name: "Found", value: 70 },
-  { name: "Lost", value: 30 },
-];
-
-const pendingPostsData = [
-  { name: "Jan", pending: 10 },
-  { name: "Feb", pending: 14 },
-  { name: "Mar", pending: 8 },
-  { name: "Apr", pending: 20 },
-];
-
-const userStatsData = [
-  { name: "Active Users", value: 75 },
-  { name: "Inactive Users", value: 25 },
-];
 
 const COLORS = ["#0088FE", "#FF8042"];
 const COLORS1 = ["#12b95aff", "#534e4bff"];
 
 export default function Dashboard() {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await getAdminStats();
+        setStats(data);
+      } catch (err) {
+        console.error("Failed to fetch stats:", err);
+        setError("Unable to load stats");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) return <p className="p-4">Loading dashboard...</p>;
+  if (error) return <p className="p-4 text-red-500">{error}</p>;
+
+  // Map backend data to chart format
+  const lineData = stats.itemsOverTime || [];
+  const pieData = [
+    { name: "Found", value: stats.foundCount || 0 },
+    { name: "Lost", value: stats.lostCount || 0 },
+  ];
+  const pendingPostsData = stats.pendingPosts || [];
+  const userStatsData = [
+    { name: "Active Users", value: stats.activeUsers || 0 },
+    { name: "Inactive Users", value: stats.inactiveUsers || 0 },
+  ];
+
   return (
     <div className="pt-16 p-4">
       <h1 className="text-2xl md:text-3xl font-bold mb-6">Dashboard Overview</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Total Users */}
         <div className="bg-white p-4 rounded shadow flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-700">Total Registered Users</h3>
-            <p className="text-3xl font-bold text-blue-600 mt-1">120</p>
+            <p className="text-3xl font-bold text-blue-600 mt-1">{stats.totalUsers}</p>
           </div>
-          <div className="text-blue-500 text-4xl">
-            👤
-          </div>
+          <div className="text-blue-500 text-4xl">👤</div>
         </div>
 
-        {/* Total Software Inquiries */}
         <div className="bg-white p-4 rounded shadow flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-700">Software Inquiries</h3>
-            <p className="text-3xl font-bold text-orange-500 mt-1">36</p>
+            <p className="text-3xl font-bold text-orange-500 mt-1">{stats.softwareInquiries}</p>
           </div>
-          <div className="text-orange-400 text-4xl">
-            📩
-          </div>
+          <div className="text-orange-400 text-4xl">📩</div>
         </div>
       </div>
 
