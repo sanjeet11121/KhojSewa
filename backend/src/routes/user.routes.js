@@ -34,8 +34,4 @@ userRouter.put('/user-found-update-posts', authenticate, updateUserFoundPosts);
 userRouter.delete('/user-found-posts', authenticate, deleteUserFoundPosts);
 
 
-
-
-
-
 export default userRouter;

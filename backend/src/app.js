@@ -8,7 +8,7 @@ import authRouter from "./routes/auth.routes.js";
 import postRouter from "./routes/post.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import userRoutes from "./routes/user.routes.js";
-import recommendRouter from "./routes/recommend.routes.js";
+
 
 const app = express();
 
@@ -36,7 +36,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/posts", postRouter);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/admin", adminRouter);
-app.use('/api/v1/recommend', recommendRouter);
+
 
 // ✅ Serve 404.html for unmatched routes
 app.use((req, res, next) => {
