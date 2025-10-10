@@ -50,9 +50,6 @@ postRouter.get("/:type/:postId", getPostById);
 // Delete post
 postRouter.delete("/:type/:postId", deletePost);
 
-// Claim post
-postRouter.post("/:type/:postId/claims", createClaim);
-
 //recommendations
 postRouter.get('/user/recommendations/lost/:postId', authenticate, getRecommendationsForLost);
 postRouter.get('/user/recommendations/found/:postId', authenticate, getRecommendationsForFound);

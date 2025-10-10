@@ -19,7 +19,9 @@ import UserPortal from "./pages/user/UserPortal.jsx";
 import UserDashboard from "./pages/user/UserDashboard.jsx";
 import EditPost from "./pages/user/EditPost.jsx";
 import PostDetail from "./pages/PostDetail.jsx";
-import Recommendations from "./pages/user/Recommendations.jsx";
+import Recommendations from "./pages/User/Recommendations.jsx";
+import FoundPostDetail from "./pages/User/FoundPostDetail.jsx";
+import ClaimsManagement from "./pages/User/ClaimsManagement.jsx";
 
 function App() {
   return (
@@ -46,9 +48,12 @@ function App() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="inappropriatePost" element={<InappropriatePost />} />
         </Route>  
-  <Route path="user/edit/:postId/:type" element={<EditPost />} />
-  <Route path="post/:type/:postId" element={<PostDetail />} />
+        <Route path="user/edit/:postId/:type" element={<EditPost />} />
+         <Route path="post/:type/:postId" element={<PostDetail />} />
         <Route path="user/recommendations/:postId" element={<Recommendations />} />
+        <Route path="/found-posts/:postId" element={<FoundPostDetail />} />
+        <Route path="/user/claims/:postId" element={<ClaimsManagement />} />
+
         <Route path="user/claims/:postId" element={<div style={{padding:'2rem',textAlign:'center'}}><h2>Claims Page Coming Soon!</h2></div>} />
          <Route path="*" element={<NotFound />} />  
       </Routes>
