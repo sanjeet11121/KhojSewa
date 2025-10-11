@@ -136,12 +136,12 @@ const getPostById = asyncHandler(async(req, res) => {
     let post;
     if (type === 'found') {
         post = await FoundPost.findById(postId)
-            .populate('user', 'username email avatar')
+            .populate('user', 'fullName username email avatar')
             .populate('likes', 'username avatar')
             .populate('claims.user', 'username avatar');
     } else if (type === 'lost') {
         post = await LostPost.findById(postId)
-            .populate('user', 'username email avatar')
+            .populate('user', 'fullName username email avatar')
             .populate('likes', 'username avatar')
             .populate('claims.user', 'username avatar');
     } else {
