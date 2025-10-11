@@ -1,8 +1,14 @@
+// FILE: src/pages/admin/Users.jsx
 import React, { useEffect, useState } from "react";
+import { useAdminStore } from "../../store/store";
 import CardComponent from "../components/cardComponent";
-import { getAllUsers, toggleUserStatus, deleteUserById } from "../services/adminApi";
-import { motion, AnimatePresence } from "framer-motion";
 import { FaStar } from "react-icons/fa";
+
+/*
+  Users page:
+  - Uses the admin store for users and actions
+  - Provides searching and pagination
+*/
 
 function StarRating({ rating }) {
   const stars = Array.from({ length: 5 }, (_, i) => i + 1);
@@ -19,54 +25,55 @@ function StarRating({ rating }) {
 }
 
 export default function Users() {
-  const [users, setUsers] = useState([]);
-  const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [selectedUserId, setSelectedUserId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    users,
+    usersMeta,
+    loading,
+    fetchAllUsers,
+    toggleUserStatus,
+    deleteUser,
+  } = useAdminStore((s) => ({
+    users: s.users,
+    usersMeta: s.usersMeta,
+    loading: s.loading,
+    fetchAllUsers: s.fetchAllUsers,
+    toggleUserStatus: s.toggleUserStatus,
+    deleteUser: s.deleteUser,
+  }));
 
-  const fetchUsers = async (page) => {
-    setLoading(true);
-    try {
-      const data = await getAllUsers(page);
-      setUsers(data.users);
-      setTotalPages(data.totalPages);
-    } catch (err) {
-      console.error("Failed to fetch users", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(usersMeta.page || 1);
 
   useEffect(() => {
-    fetchUsers(currentPage);
+    fetchAllUsers(currentPage, 10);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
+  useEffect(() => {
+    setCurrentPage(usersMeta.page || 1);
+  }, [usersMeta.page]);
+
   const handleToggleStatus = async (user) => {
-    try {
-      const updatedUser = await toggleUserStatus(user._id, !user.isActive);
-      setUsers((prev) =>
-        prev.map((u) => (u._id === updatedUser.data._id ? updatedUser.data : u))
-      );
-    } catch (err) {
-      console.error(err);
-    }
+    await toggleUserStatus(user._id, !user.isActive);
+    // refresh current page data
+    fetchAllUsers(currentPage, 10);
   };
 
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("Are you sure you want to remove this user?")) return;
-    try {
-      await deleteUserById(userId);
-      setUsers((prev) => prev.filter((u) => u._id !== userId));
-    } catch (err) {
-      console.error(err);
+    const ok = await deleteUser(userId);
+    if (ok) {
+      // If deleteUser already updated local state, nothing more to do.
+    } else {
+      alert("Failed to remove user.");
     }
   };
 
-  const filteredUsers = users.filter((user) =>
-    (user.fullName || user.username).toLowerCase().includes(search.toLowerCase())
+  const filteredUsers = (users || []).filter((user) =>
+    (user.fullName || user.username || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalPages = usersMeta.totalPages || 1;
 
   return (
     <div className="pt-16 p-4">
@@ -102,34 +109,34 @@ export default function Users() {
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <React.Fragment key={user._id}>
-                    <tr className="cursor-pointer hover:bg-gray-50 transition-colors">
-                      <td className="p-3">{user.fullName || user.username}</td>
-                      <td className="p-3">{user.isActive ? "Active" : "Blocked"}</td>
-                      <td className="p-3 text-center">
-                        <StarRating rating={user.rating || 0} />
-                      </td>
-                      <td className="p-3 text-center font-semibold">{user.posts?.length || 0}</td>
-                      <td className="p-3 text-center flex justify-center gap-2">
-                        <button
-                          className={`px-3 py-1 rounded text-sm ${
-                            user.isActive
-                              ? "bg-yellow-500 text-white hover:bg-yellow-600"
-                              : "bg-green-500 text-white hover:bg-green-600"
-                          }`}
-                          onClick={() => handleToggleStatus(user)}
-                        >
-                          {user.isActive ? "Block" : "Unblock"}
-                        </button>
-                        <button
-                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
-                          onClick={() => handleDeleteUser(user._id)}
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  </React.Fragment>
+                  <tr key={user._id} className="cursor-pointer hover:bg-gray-50 transition-colors">
+                    <td className="p-3">{user.fullName || user.username}</td>
+                    <td className="p-3">{user.isActive ? "Active" : "Blocked"}</td>
+                    <td className="p-3 text-center">
+                      <StarRating rating={user.rating || 0} />
+                    </td>
+                    <td className="p-3 text-center font-semibold">{user.posts?.length || 0}</td>
+                    <td className="p-3 text-center flex justify-center gap-2">
+                      <button
+                        className={`px-3 py-1 rounded text-sm ${
+                          user.isActive
+                            ? "bg-yellow-500 text-white hover:bg-yellow-600"
+                            : "bg-green-500 text-white hover:bg-green-600"
+                        }`}
+                        onClick={() => handleToggleStatus(user)}
+                        disabled={loading}
+                      >
+                        {user.isActive ? "Block" : "Unblock"}
+                      </button>
+                      <button
+                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
+                        onClick={() => handleDeleteUser(user._id)}
+                        disabled={loading}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
                 ))
               )}
             </tbody>

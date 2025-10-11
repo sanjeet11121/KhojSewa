@@ -1,35 +1,35 @@
-import React, { useEffect, useState } from "react";
+// FILE: src/pages/admin/UserDetailPage.jsx
+import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import CardComponent from "../components/cardComponent";
-import { getUserById } from "../services/adminApi";
+import { useAdminStore } from "../../store/store";
+
+/*
+  UserDetailPage: Uses store.fetchUserById and reads userDetail from store.
+*/
 
 export default function UserDetailPage() {
   const { id } = useParams();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  const { userDetail, userDetailLoading, fetchUserById } = useAdminStore((s) => ({
+    userDetail: s.userDetail,
+    userDetailLoading: s.userDetailLoading,
+    fetchUserById: s.fetchUserById,
+  }));
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const data = await getUserById(id);
-        setUser(data.user);
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUser();
-  }, [id]);
+    if (id) fetchUserById(id);
+  }, [id, fetchUserById]);
 
-  if (loading) return <p className="p-6 text-gray-500">Loading...</p>;
-  if (!user) return <p className="p-6 text-gray-500">User not found.</p>;
+  if (userDetailLoading) return <p className="p-6 text-gray-500">Loading...</p>;
+  if (!userDetail) return <p className="p-6 text-gray-500">User not found.</p>;
+
+  const user = userDetail;
 
   return (
     <div className="p-6 max-w-xl mx-auto">
       <CardComponent
-        profilePicture={user.profilePicture}
+        profilePicture={user.profilePicture || user.avatar || ""}
         username={user.fullName || user.username}
         email={user.email}
         phone={user.phone}

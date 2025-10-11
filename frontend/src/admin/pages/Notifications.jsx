@@ -1,33 +1,36 @@
-import React, { useEffect, useState } from "react";
-import { getNotificationsApi, postNotificationApi } from "../services/adminApi";
+// FILE: src/pages/admin/Notifications.jsx
+import React, { useEffect } from "react";
+import { useAdminStore } from "../../store/store";
+
+/*
+  Notifications page
+  - Uses the admin store (fetchNotifications, postNotification)
+  - No external API helpers required.
+*/
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
+  const {
+    notifications,
+    notificationsLoading,
+    fetchNotifications,
+    postNotification,
+  } = useAdminStore((s) => ({
+    notifications: s.notifications,
+    notificationsLoading: s.notificationsLoading,
+    fetchNotifications: s.fetchNotifications,
+    postNotification: s.postNotification,
+  }));
 
-  // Fetch notifications from backend
+  const [newMessage, setNewMessage] = React.useState("");
+
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const data = await getNotificationsApi();
-        setNotifications(data);
-      } catch (error) {
-        console.error("Failed to fetch notifications", error);
-      }
-    };
     fetchNotifications();
-  }, []);
+  }, [fetchNotifications]);
 
   const handlePostNotification = async () => {
     if (!newMessage.trim()) return;
-
-    try {
-      const newNote = await postNotificationApi(newMessage);
-      setNotifications([newNote, ...notifications]);
-      setNewMessage("");
-    } catch (error) {
-      console.error("Failed to post notification", error);
-    }
+    const created = await postNotification(newMessage.trim());
+    if (created) setNewMessage("");
   };
 
   return (
@@ -43,24 +46,38 @@ export default function Notifications() {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
         />
-        <button
-          onClick={handlePostNotification}
-          className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors"
-        >
-          Post Notification
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handlePostNotification}
+            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors"
+            disabled={notificationsLoading}
+          >
+            {notificationsLoading ? "Posting..." : "Post Notification"}
+          </button>
+          <button
+            onClick={() => fetchNotifications()}
+            className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 transition-colors"
+            disabled={notificationsLoading}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Notifications List */}
       <ul className="bg-white shadow rounded p-4">
-        {notifications.map((note) => (
-          <li key={note._id} className="border-b last:border-b-0 py-2">
-            <p className="font-medium">{note.message}</p>
-            <span className="text-sm text-gray-500">
-              {new Date(note.createdAt).toLocaleString()}
-            </span>
-          </li>
-        ))}
+        {notifications?.length === 0 ? (
+          <li className="text-gray-500">No notifications yet.</li>
+        ) : (
+          notifications.map((note) => (
+            <li key={note._id || note.id} className="border-b last:border-b-0 py-2">
+              <p className="font-medium">{note.message}</p>
+              <span className="text-sm text-gray-500">
+                {note.createdAt ? new Date(note.createdAt).toLocaleString() : ""}
+              </span>
+            </li>
+          ))
+        )}
       </ul>
     </div>
   );
