@@ -102,10 +102,10 @@ const MyPosts = () => {
     navigate(`/user/recommendations/${postId}`);
   };
 
-  const handleClaimsClick = (postId, e) => {
-    e.stopPropagation();
-    navigate(`/user/claims/${postId}`);
-  };
+ const handleClaimsClick = (postId, e) => {
+  e.stopPropagation();
+  navigate(`/user/claims/${postId}`);
+};
 
   if (loading) {
     return (

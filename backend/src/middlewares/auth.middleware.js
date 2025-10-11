@@ -43,10 +43,12 @@ export const authenticate = asyncHandler(async (req, res, next) => {
             console.log('Token verified successfully, decoded:', decoded);
         } catch (error) {
             console.error('Token verification error:', error);
-            let message = 'Invalid token';
             if (error.name === 'TokenExpiredError') {
-                message = 'Token expired';
-            } else if (error.name === 'JsonWebTokenError') {
+                // Send a specific response for frontend auto-logout
+                return res.status(401).json({ message: 'Token expired', code: 'TOKEN_EXPIRED' });
+            }
+            let message = 'Invalid token';
+            if (error.name === 'JsonWebTokenError') {
                 message = 'Invalid token';
             }
             return next(new ApiError(401, message));

@@ -18,10 +18,15 @@
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
         "dotenv": "^16.5.0",
+        "elasticsearch": "^16.7.3",
         "express": "^5.1.0",
         "jsonwebtoken": "^9.0.2",
         "mongoose": "^8.15.0",
         "multer": "^2.0.2",
-        "nodemailer": "^7.0.5"
+        "natural": "^8.1.0",
+        "node-nlp": "^5.0.0-alpha.5",
+        "nodemailer": "^7.0.5",
+        "redis": "^5.8.3",
+        "stemmer": "^2.0.1"
     }
 }
