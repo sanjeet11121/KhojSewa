@@ -8,6 +8,10 @@ import authRouter from "./routes/auth.routes.js";
 import postRouter from "./routes/post.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import claimRouter from "./routes/claim.rlolutes.js";
+
+import cosineMatchingRoutes from './routes/ml/cosineMatching.routes.js';
+import realTimeMatchingRoutes from './routes/ml/realTimeMatching.routes.js';
 
 
 const app = express();
@@ -35,8 +39,15 @@ app.use(express.static(path.join(__dirname, "public"))); // serve static files
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/posts", postRouter);
 app.use("/api/v1/users", userRoutes);
+app.use('/api/v1/claims', claimRouter);
 app.use("/api/v1/admin", adminRouter);
 
+
+//ML
+app.use('/api/v1/cosine-matching', cosineMatchingRoutes);
+
+// Add to your routes
+app.use('/api/v1/real-time-matching', realTimeMatchingRoutes);
 
 // ✅ Serve 404.html for unmatched routes
 app.use((req, res, next) => {
