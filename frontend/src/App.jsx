@@ -35,7 +35,7 @@ function App() {
         <Route path="/Search" element={<Search />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/about" element={<AboutUs />} />
-        <Route path="/UserInterface" element={<UserInterface />} />
+        <Route path="/user/UserInterface" element={<UserInterface />} />
         <Route path="/user" element={<UserPortal />} />
         <Route path="/user/dashboard" element={<UserDashboard />} />
 
