@@ -2,6 +2,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { ApiResponse } from '../../utils/ApiResponse.js';
 import { ApiError } from '../../utils/ApiError.js';
 import cosineMatchingEngine from '../../services/cosineMatching.service.js';
+import notificationService from '../../services/notifications.service.js';
 import { FoundPost } from '../../models/foundPost.model.js';
 import { LostPost } from '../../models/lostPost.model.js';
 
@@ -178,5 +179,76 @@ export const calculateDirectCosineSimilarity = asyncHandler(async (req, res) => 
                            textSimilarity >= 0.4 ? 'Moderately Similar' : 
                            'Low Similarity'
         }, "Direct cosine similarity calculated successfully")
+    );
+});
+
+export const findRealTimeMatchesAndNotify = asyncHandler(async (req, res) => {
+    const { lostPostId } = req.params;
+    const { 
+        limit = 10, 
+        minScore = 0.1,
+        sendNotifications = true 
+    } = req.query;
+
+    if (!lostPostId) {
+        throw new ApiError(400, "Lost post ID is required");
+    }
+
+    const matches = await realTimeMatching.findMatchesForLostPost(lostPostId, {
+        limit: parseInt(limit),
+        minScore: parseFloat(minScore)
+    });
+
+    // Send notifications for good matches
+    if (sendNotifications && matches.length > 0) {
+        try {
+            const lostPost = await LostPost.findById(lostPostId)
+                .populate('user', 'email fullName notificationPreferences');
+            
+            // Only send if user has notifications enabled
+            if (lostPost.user.notificationPreferences?.email) {
+                const notificationMatches = matches.filter(match => match.score > 0.3);
+                
+                for (const match of notificationMatches) {
+                    await notificationService.sendMatchNotification(
+                        lostPost,
+                        match.post,
+                        match.score,
+                        'real_time_cosine_similarity'
+                    );
+                }
+            }
+        } catch (notificationError) {
+            console.error('Failed to send match notifications:', notificationError);
+            // Don't fail the request if notifications fail
+        }
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, {
+            queryPostId: lostPostId,
+            searchType: 'lost_to_found',
+            matches: matches.map(match => ({
+                post: {
+                    id: match.post._id,
+                    title: match.post.title,
+                    description: match.post.description,
+                    category: match.post.category,
+                    location: match.post.locationFound,
+                    date: match.post.foundDate,
+                    itemName: match.post.itemName,
+                    user: match.post.user,
+                    type: 'found',
+                    images: match.post.images,
+                    createdAt: match.post.createdAt
+                },
+                score: match.score,
+                confidence: match.confidence,
+                breakdown: match.breakdown
+            })),
+            totalMatches: matches.length,
+            searchMethod: 'real_time_cosine_similarity',
+            notificationsSent: sendNotifications
+        }, "Real-time matches found and notifications sent successfully")
     );
 });

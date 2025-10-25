@@ -14,6 +14,19 @@ const foundPostSchema = new mongoose.Schema({
     images: [{
         type: String
     }],
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number], // [longitude, latitude]
+            required: true
+        },
+        address: String,
+        addressDetails: mongoose.Schema.Types.Mixed
+    },
     locationFound: {
         type: String,
         required: true
@@ -68,5 +81,8 @@ claims: [{
         default: false
     }
 }, { timestamps: true });
+
+// Create 2dsphere index for geospatial queries
+foundPostSchema.index({ location: '2dsphere' });
 
 export const FoundPost = mongoose.model('FoundPost', foundPostSchema);

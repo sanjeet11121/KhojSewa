@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { app } from "./app.js";
+import { app, startAutomatedServices } from "./app.js"; // Updated import
 import connectDB from "./db/index.js";
 
 dotenv.config({
@@ -9,9 +9,12 @@ dotenv.config({
 connectDB()
     .then(() => {
         app.listen(process.env.PORT || 8000, () => {
-            console.log(`server is running at port :${process.env.PORT}`)
+            console.log(`🚀 Server is running at port: ${process.env.PORT}`);
+            
+            // NEW: Start automated services AFTER server starts
+            startAutomatedServices();
         })
     })
     .catch((err) => {
-        console.log("Mongodb connection failed !!!", err);
+        console.log("❌ MongoDB connection failed !!!", err);
     })

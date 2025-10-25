@@ -61,7 +61,26 @@ const userSchema = new mongoose.Schema({
   emailVerificationOtp: String,
   emailVerificationOtpExpires: Date,
   emailVerificationToken: String,
-  emailVerificationExpires: Date
+  emailVerificationExpires: Date,
+  notificationPreferences: {
+        email: {
+            type: Boolean,
+            default: true
+        },
+        claims: {
+            type: Boolean,
+            default: true
+        },
+        matches: {
+            type: Boolean,
+            default: true
+        },
+        frequency: {
+            type: String,
+            enum: ['immediate', 'daily', 'weekly'],
+            default: 'immediate'
+        }
+    },
 }, {
   timestamps: true
 });

@@ -1,0 +1,546 @@
+// services/notificationService.js (Enhanced Version)
+import { sendMail } from '../utils/email.js';
+import { User } from '../models/user.model.js';
+import { Claim } from '../models/claim.model.js';
+import { FoundPost } from '../models/foundPost.model.js';
+import { LostPost } from '../models/lostPost.model.js';
+
+class NotificationService {
+    constructor() {
+        this.emailTemplates = {
+            // New: Matching Posts Notification
+            matchingPostsFound: {
+                subject: 'Potential Matches Found for Your Post - KhojSewa',
+                template: (postTitle, matches, postType) => `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            .container { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; }
+                            .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
+                            .content { padding: 20px; background: #f9f9f9; }
+                            .match-card { background: white; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #4F46E5; }
+                            .confidence-high { color: #10B981; }
+                            .confidence-medium { color: #F59E0B; }
+                            .confidence-low { color: #EF4444; }
+                            .footer { padding: 20px; text-align: center; color: #666; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>KhojSewa</h1>
+                                <p>Lost & Found Platform</p>
+                            </div>
+                            <div class="content">
+                                <h2>Potential Matches Found!</h2>
+                                <p>We found ${matches.length} potential ${matches.length === 1 ? 'match' : 'matches'} for your ${postType} post:</p>
+                                <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                                    <h3>Your Post: "${postTitle}"</h3>
+                                </div>
+                                
+                                ${matches.slice(0, 5).map(match => `
+                                    <div class="match-card">
+                                        <h4>${match.post.title}</h4>
+                                        <p><strong>Type:</strong> ${match.post.locationFound ? 'Found Item' : 'Lost Item'}</p>
+                                        <p><strong>Location:</strong> ${match.post.locationFound || match.post.locationLost}</p>
+                                        <p><strong>Date:</strong> ${new Date(match.post.foundDate || match.post.lostDate).toLocaleDateString()}</p>
+                                        <p><strong>Match Score:</strong> 
+                                            <span class="confidence-${match.confidence}">${(match.score * 100).toFixed(1)}% (${match.confidence} confidence)</span>
+                                        </p>
+                                        <p><strong>Reasons:</strong> ${match.matchReasons.join(', ')}</p>
+                                        <a href="${process.env.FRONTEND_URL}/posts/${match.post._id}" 
+                                           style="background: #4F46E5; color: white; padding: 8px 16px; 
+                                                  text-decoration: none; border-radius: 5px; display: inline-block; font-size: 14px;">
+                                            View Details
+                                        </a>
+                                    </div>
+                                `).join('')}
+                                
+                                ${matches.length > 5 ? 
+                                    `<p style="text-align: center; margin-top: 15px;">
+                                        <strong>+${matches.length - 5} more matches available in your dashboard</strong>
+                                    </p>` : ''
+                                }
+                                
+                                <div style="text-align: center; margin-top: 20px;">
+                                    <a href="${process.env.FRONTEND_URL}/dashboard/matches" 
+                                       style="background: #4F46E5; color: white; padding: 12px 24px; 
+                                              text-decoration: none; border-radius: 5px; display: inline-block;">
+                                        View All Matches
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="footer">
+                                <p>These matches are automatically generated by our AI system. Please review them carefully.</p>
+                                <p>Thank you for using KhojSewa</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `
+            },
+
+            // Enhanced Claim Notification
+            claimReceived: {
+                subject: 'New Claim Received on Your Post - KhojSewa',
+                template: (postTitle, claimantName, claimDescription, itemDetails) => `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            .container { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; }
+                            .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
+                            .content { padding: 20px; background: #f9f9f9; }
+                            .claim-details { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
+                            .footer { padding: 20px; text-align: center; color: #666; }
+                            .urgent { background: #FEF3C7; padding: 10px; border-radius: 5px; margin: 10px 0; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>KhojSewa</h1>
+                                <p>Lost & Found Platform</p>
+                            </div>
+                            <div class="content">
+                                <h2>New Claim Received! 🎯</h2>
+                                
+                                ${itemDetails.isUrgent ? `
+                                    <div class="urgent">
+                                        <strong>🚨 Urgent Claim:</strong> This claimant has marked this claim as urgent. Please respond promptly.
+                                    </div>
+                                ` : ''}
+                                
+                                <p>Someone has claimed your ${itemDetails.postType} item:</p>
+                                <div class="claim-details">
+                                    <h3>Your Post: "${postTitle}"</h3>
+                                    <p><strong>Claimant Name:</strong> ${claimantName}</p>
+                                    <p><strong>Claim Submitted:</strong> ${new Date().toLocaleDateString()}</p>
+                                    <p><strong>Claim Description:</strong></p>
+                                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                                        ${claimDescription}
+                                    </div>
+                                    ${itemDetails.contactInfo ? `
+                                        <p><strong>Contact Information Provided:</strong> ${itemDetails.contactInfo}</p>
+                                    ` : ''}
+                                </div>
+                                
+                                <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                                    <h4>Next Steps:</h4>
+                                    <ol>
+                                        <li>Review the claim details carefully</li>
+                                        <li>Contact the claimant if needed</li>
+                                        <li>Update the claim status based on your verification</li>
+                                        <li>Mark the item as returned/found once verified</li>
+                                    </ol>
+                                </div>
+                                
+                                <div style="text-align: center; margin-top: 20px;">
+                                    <a href="${process.env.FRONTEND_URL}/dashboard/claims" 
+                                       style="background: #4F46E5; color: white; padding: 12px 24px; 
+                                              text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px;">
+                                        Review Claim
+                                    </a>
+                                    <a href="${process.env.FRONTEND_URL}/posts/${itemDetails.postId}" 
+                                       style="background: #6B7280; color: white; padding: 12px 24px; 
+                                              text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px;">
+                                        View Original Post
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="footer">
+                                <p>Please respond to this claim within 48 hours to maintain good community standing.</p>
+                                <p>Thank you for using KhojSewa</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `
+            },
+
+            // Enhanced Claim Status Update
+            claimStatusUpdate: {
+                subject: 'Your Claim Status Has Been Updated - KhojSewa',
+                template: (postTitle, status, ownerMessage, nextSteps) => `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            .container { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; }
+                            .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
+                            .content { padding: 20px; background: #f9f9f9; }
+                            .status-approved { color: #10B981; background: #D1FAE5; padding: 8px 12px; border-radius: 5px; display: inline-block; }
+                            .status-rejected { color: #EF4444; background: #FEE2E2; padding: 8px 12px; border-radius: 5px; display: inline-block; }
+                            .status-under_review { color: #F59E0B; background: #FEF3C7; padding: 8px 12px; border-radius: 5px; display: inline-block; }
+                            .next-steps { background: #EFF6FF; padding: 15px; border-radius: 8px; margin: 15px 0; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>KhojSewa</h1>
+                                <p>Lost & Found Platform</p>
+                            </div>
+                            <div class="content">
+                                <h2>Claim Status Updated</h2>
+                                <p>Your claim on the following item has been updated by the post owner:</p>
+                                <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                                    <h3>"${postTitle}"</h3>
+                                    <p><strong>New Status:</strong> 
+                                        <span class="status-${status}">${status.toUpperCase().replace('_', ' ')}</span>
+                                    </p>
+                                    ${ownerMessage ? `
+                                        <p><strong>Message from Owner:</strong></p>
+                                        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                                            ${ownerMessage}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
+                                ${nextSteps ? `
+                                    <div class="next-steps">
+                                        <h4>Next Steps:</h4>
+                                        <p>${nextSteps}</p>
+                                    </div>
+                                ` : ''}
+                                
+                                <div style="text-align: center; margin-top: 20px;">
+                                    <a href="${process.env.FRONTEND_URL}/dashboard/my-claims" 
+                                       style="background: #4F46E5; color: white; padding: 12px 24px; 
+                                              text-decoration: none; border-radius: 5px; display: inline-block;">
+                                        View My Claims
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `
+            },
+
+            // New: Daily/Weekly Match Summary
+            matchSummary: {
+                subject: 'Your Weekly Match Summary - KhojSewa',
+                template: (userName, summary) => `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            .container { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; }
+                            .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
+                            .content { padding: 20px; background: #f9f9f9; }
+                            .stat-card { background: white; padding: 15px; border-radius: 8px; margin: 10px 0; text-align: center; }
+                            .footer { padding: 20px; text-align: center; color: #666; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>KhojSewa</h1>
+                                <p>Your Weekly Match Summary</p>
+                            </div>
+                            <div class="content">
+                                <h2>Hello ${userName}! 👋</h2>
+                                <p>Here's your weekly summary of activity on KhojSewa:</p>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0;">
+                                    <div class="stat-card">
+                                        <h3>${summary.totalMatches}</h3>
+                                        <p>New Matches Found</p>
+                                    </div>
+                                    <div class="stat-card">
+                                        <h3>${summary.highConfidenceMatches}</h3>
+                                        <p>High Confidence Matches</p>
+                                    </div>
+                                    <div class="stat-card">
+                                        <h3>${summary.newClaims}</h3>
+                                        <p>Claims Received</p>
+                                    </div>
+                                    <div class="stat-card">
+                                        <h3>${summary.pendingActions}</h3>
+                                        <p>Pending Actions</p>
+                                    </div>
+                                </div>
+                                
+                                ${summary.topMatches.length > 0 ? `
+                                    <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                                        <h3>Top Matches This Week:</h3>
+                                        ${summary.topMatches.map(match => `
+                                            <div style="border-left: 3px solid #4F46E5; padding-left: 10px; margin: 10px 0;">
+                                                <strong>${match.postTitle}</strong><br>
+                                                <small>${match.confidence} confidence • ${match.matchDate}</small>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                                
+                                <div style="text-align: center; margin-top: 20px;">
+                                    <a href="${process.env.FRONTEND_URL}/dashboard" 
+                                       style="background: #4F46E5; color: white; padding: 12px 24px; 
+                                              text-decoration: none; border-radius: 5px; display: inline-block;">
+                                        View Dashboard
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="footer">
+                                <p>Stay active to increase your chances of finding lost items!</p>
+                                <p>Thank you for using KhojSewa</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `
+            }
+        };
+    }
+
+    // NEW: Send matching posts notification
+    async sendMatchingPostsNotification(userId, postId, matches, postType) {
+        try {
+            const user = await User.findById(userId).select('email fullName notificationPreferences');
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            // Check if user wants match notifications
+            if (!user.notificationPreferences?.matches) {
+                console.log('User has disabled match notifications');
+                return;
+            }
+
+            let post;
+            if (postType === 'lost') {
+                post = await LostPost.findById(postId);
+            } else {
+                post = await FoundPost.findById(postId);
+            }
+
+            if (!post) {
+                throw new Error('Post not found');
+            }
+
+            const template = this.emailTemplates.matchingPostsFound;
+            const html = template.template(
+                post.title,
+                matches,
+                postType
+            );
+
+            await sendMail(user.email, template.subject, html);
+            
+            console.log(`Matching posts notification sent to ${user.email} for post ${postId}`);
+            
+        } catch (error) {
+            console.error('Error sending matching posts notification:', error);
+            throw error;
+        }
+    }
+
+    // ENHANCED: Send claim notification to post owner
+    async sendClaimNotification(claimId) {
+        try {
+            const claim = await Claim.findById(claimId)
+                .populate('post')
+                .populate('claimedBy', 'fullName email')
+                .populate('postOwner', 'fullName email notificationPreferences');
+
+            if (!claim) {
+                throw new Error('Claim not found');
+            }
+
+            const postOwner = claim.postOwner;
+            
+            // Check if user wants claim notifications
+            if (!postOwner.notificationPreferences?.claims) {
+                console.log('User has disabled claim notifications');
+                return;
+            }
+
+            const itemDetails = {
+                postType: claim.post.locationFound ? 'found' : 'lost',
+                postId: claim.post._id,
+                isUrgent: claim.isUrgent || false,
+                contactInfo: claim.contactInformation || ''
+            };
+
+            const template = this.emailTemplates.claimReceived;
+            const html = template.template(
+                claim.post.title,
+                claim.claimedBy.fullName,
+                claim.description,
+                itemDetails
+            );
+
+            await sendMail(postOwner.email, template.subject, html);
+            
+            console.log(`Claim notification sent to ${postOwner.email}`);
+            
+        } catch (error) {
+            console.error('Error sending claim notification:', error);
+            throw error;
+        }
+    }
+
+    // ENHANCED: Send claim status update to claimant
+    async sendClaimStatusUpdate(claimId, status, ownerMessage = '') {
+        try {
+            const claim = await Claim.findById(claimId)
+                .populate('post')
+                .populate('claimedBy', 'fullName email notificationPreferences');
+
+            if (!claim) {
+                throw new Error('Claim not found');
+            }
+
+            const claimant = claim.claimedBy;
+            
+            // Check if user wants notification
+            if (!claimant.notificationPreferences?.claims) {
+                console.log('User has disabled claim notifications');
+                return;
+            }
+
+            const nextSteps = this.getNextStepsForClaimStatus(status);
+
+            const template = this.emailTemplates.claimStatusUpdate;
+            const html = template.template(
+                claim.post.title,
+                status,
+                ownerMessage,
+                nextSteps
+            );
+
+            await sendMail(claimant.email, template.subject, html);
+            
+            console.log(`Claim status update sent to ${claimant.email}`);
+            
+        } catch (error) {
+            console.error('Error sending claim status update:', error);
+            throw error;
+        }
+    }
+
+    // NEW: Send weekly match summary
+    async sendWeeklyMatchSummary(userId) {
+        try {
+            const user = await User.findById(userId).select('email fullName notificationPreferences');
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            // Check if user wants summary notifications
+            if (!user.notificationPreferences?.summary) {
+                console.log('User has disabled summary notifications');
+                return;
+            }
+
+            // Calculate summary data (you'll need to implement this based on your data)
+            const summary = await this.calculateUserSummary(userId);
+
+            const template = this.emailTemplates.matchSummary;
+            const html = template.template(
+                user.fullName,
+                summary
+            );
+
+            await sendMail(user.email, template.subject, html);
+            
+            console.log(`Weekly summary sent to ${user.email}`);
+            
+        } catch (error) {
+            console.error('Error sending weekly summary:', error);
+            throw error;
+        }
+    }
+
+    // Helper: Get next steps based on claim status
+    getNextStepsForClaimStatus(status) {
+        const steps = {
+            'approved': 'Please contact the post owner to arrange for item pickup/delivery. Make sure to verify the item before completing the transaction.',
+            'rejected': 'The post owner was not convinced this is their item. You can try providing more evidence or contact support if you believe this was a mistake.',
+            'under_review': 'The post owner is reviewing your claim. They may contact you for additional information. Please check your messages regularly.',
+            'pending_verification': 'Additional verification is required. Please be prepared to provide more details about the item.',
+            'contact_owner': 'Please contact the post owner directly to discuss the claim further.'
+        };
+        
+        return steps[status] || 'Please check your dashboard for updates on this claim.';
+    }
+
+    // Helper: Calculate user summary for weekly report
+    async calculateUserSummary(userId) {
+        // This is a simplified version - implement based on your actual data structure
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        // You'll need to implement these queries based on your data model
+        const totalMatches = 0; // Query matches from last week
+        const highConfidenceMatches = 0; // Query high confidence matches
+        const newClaims = 0; // Query new claims on user's posts
+        const pendingActions = 0; // Query pending actions
+
+        const topMatches = []; // Query top 3 matches from last week
+
+        return {
+            totalMatches,
+            highConfidenceMatches,
+            newClaims,
+            pendingActions,
+            topMatches
+        };
+    }
+
+    // NEW: Trigger for when new matches are found
+    async triggerNewMatchesNotification(postId, postType, matches) {
+        try {
+            let post;
+            if (postType === 'lost') {
+                post = await LostPost.findById(postId).populate('user');
+            } else {
+                post = await FoundPost.findById(postId).populate('user');
+            }
+
+            if (!post || !post.user) {
+                throw new Error('Post or user not found');
+            }
+
+            // Only send if there are good matches (score > 0.3)
+            const goodMatches = matches.filter(match => match.score > 0.3);
+            
+            if (goodMatches.length > 0) {
+                await this.sendMatchingPostsNotification(
+                    post.user._id, 
+                    postId, 
+                    goodMatches.slice(0, 10), // Limit to top 10 matches
+                    postType
+                );
+            }
+
+        } catch (error) {
+            console.error('Error triggering match notification:', error);
+            throw error;
+        }
+    }
+
+    // NEW: Bulk notification for multiple users (for admin/cron jobs)
+    async sendBulkMatchNotifications(matchDataArray) {
+        const results = [];
+        
+        for (const matchData of matchDataArray) {
+            try {
+                await this.triggerNewMatchesNotification(
+                    matchData.postId,
+                    matchData.postType,
+                    matchData.matches
+                );
+                results.push({ postId: matchData.postId, status: 'success' });
+            } catch (error) {
+                results.push({ postId: matchData.postId, status: 'error', error: error.message });
+            }
+        }
+        
+        return results;
+    }
+}
+
+export default new NotificationService();
