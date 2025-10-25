@@ -157,7 +157,7 @@ function Navbar() {
                     <p className="text-sm text-gray-500">{user?.phone || "No phone"}</p>
                   </div>
                 </div>
-                <button onClick={() => navigate('/User/UserInterface')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded">Manage Account</button>
+                <button onClick={() => navigate('/User/Userinterface')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded">Manage Account</button>
                 <button onClick={() => navigate('/user/dashboard')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">User Dashboard</button>
                 <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">Sign Out</button>
               </div>
