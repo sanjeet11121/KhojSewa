@@ -38,9 +38,9 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           <NavLink to="/admin/notifications" className={navLinkClasses}>
             Notifications
           </NavLink>
-          <NavLink to="/admin/inappropriatePost" className={navLinkClasses}>
+          {/* <NavLink to="/admin/inappropriatePost" className={navLinkClasses}>
             Inappropriate Posts
-          </NavLink>
+          </NavLink> */}
         </nav>
       </aside>
 

@@ -1,9 +1,14 @@
-import React, { useState } from "react";
-import { users as initialUsers } from "../../data/userData";
-import { posts } from "../../data/post"; 
+// FILE: src/pages/admin/Users.jsx
+import React, { useEffect, useState } from "react";
+import { useAdminStore } from "../../store/store";
 import CardComponent from "../components/cardComponent";
 import { FaStar } from "react-icons/fa";
-import { motion, AnimatePresence } from "framer-motion";
+
+/*
+  Users page:
+  - Uses the admin store for users and actions
+  - Provides searching and pagination
+*/
 
 function StarRating({ rating }) {
   const stars = Array.from({ length: 5 }, (_, i) => i + 1);
@@ -12,9 +17,7 @@ function StarRating({ rating }) {
       {stars.map((star) => (
         <FaStar
           key={star}
-          className={`mx-0.5 ${
-            star <= rating ? "text-yellow-400" : "text-gray-300"
-          }`}
+          className={`mx-0.5 ${star <= rating ? "text-yellow-400" : "text-gray-300"}`}
         />
       ))}
     </div>
@@ -22,164 +25,124 @@ function StarRating({ rating }) {
 }
 
 export default function Users() {
-  const [users, setUsers] = useState(initialUsers);
+  const {
+    users,
+    usersMeta,
+    loading,
+    fetchAllUsers,
+    toggleUserStatus,
+    deleteUser,
+  } = useAdminStore((s) => ({
+    users: s.users,
+    usersMeta: s.usersMeta,
+    loading: s.loading,
+    fetchAllUsers: s.fetchAllUsers,
+    toggleUserStatus: s.toggleUserStatus,
+    deleteUser: s.deleteUser,
+  }));
+
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(usersMeta.page || 1);
 
-  // Calculate posts count for each user dynamically
-  const usersWithPostCount = users.map(user => {
-    const userPostCount = posts.filter(post => post.userId === user.id).length;
-    return {...user, posts: userPostCount};
-  });
+  useEffect(() => {
+    fetchAllUsers(currentPage, 10);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
-  const usersPerPage = 8;
-  const filteredUsers = usersWithPostCount.filter((user) =>
-    user.name.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    setCurrentPage(usersMeta.page || 1);
+  }, [usersMeta.page]);
+
+  const handleToggleStatus = async (user) => {
+    await toggleUserStatus(user._id, !user.isActive);
+    // refresh current page data
+    fetchAllUsers(currentPage, 10);
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to remove this user?")) return;
+    const ok = await deleteUser(userId);
+    if (ok) {
+      // If deleteUser already updated local state, nothing more to do.
+    } else {
+      alert("Failed to remove user.");
+    }
+  };
+
+  const filteredUsers = (users || []).filter((user) =>
+    (user.fullName || user.username || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-  const startIndex = (currentPage - 1) * usersPerPage;
-  const currentUsers = filteredUsers.slice(startIndex, startIndex + usersPerPage);
-
-  const toggleBlockUser = (id) => {
-    setUsers(
-      users.map((user) =>
-        user.id === id
-          ? { ...user, status: user.status === "Blocked" ? "Active" : "Blocked" }
-          : user
-      )
-    );
-  };
-
-  const removeUser = (id) => {
-    setUsers(users.filter((user) => user.id !== id));
-    if (selectedUserId === id) setSelectedUserId(null);
-  };
-
-  const handleUserClick = (id) => {
-    setSelectedUserId((prev) => (prev === id ? null : id));
-  };
+  const totalPages = usersMeta.totalPages || 1;
 
   return (
     <div className="pt-16 p-4">
       <h1 className="text-2xl md:text-3xl font-bold mb-4">User Management</h1>
-
       <input
         type="text"
         placeholder="Search user..."
         className="border p-2 rounded mb-4 w-full sm:w-1/3"
         value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setCurrentPage(1);
-        }}
+        onChange={(e) => setSearch(e.target.value)}
       />
 
-      <div className="overflow-x-auto bg-white rounded shadow border border-gray-200">
-        <table className="w-full text-sm md:text-base">
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="p-2 md:p-3 text-left">Name</th>
-              <th className="p-2 md:p-3 text-left">Status</th>
-              <th className="p-2 md:p-3 text-center">Rating</th>
-              <th className="p-2 md:p-3 text-center">Posts</th> {/* Added posts column */}
-              <th className="p-2 md:p-3 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentUsers.length === 0 ? (
+      {loading ? (
+        <p>Loading users...</p>
+      ) : (
+        <div className="overflow-x-auto bg-white rounded shadow border border-gray-200">
+          <table className="w-full text-sm md:text-base">
+            <thead className="bg-gray-200">
               <tr>
-                <td colSpan="5" className="text-center p-4 text-gray-500">
-                  No users found.
-                </td>
+                <th className="p-2 md:p-3 text-left">Name</th>
+                <th className="p-2 md:p-3 text-left">Status</th>
+                <th className="p-2 md:p-3 text-center">Rating</th>
+                <th className="p-2 md:p-3 text-center">Posts</th>
+                <th className="p-2 md:p-3 text-center">Actions</th>
               </tr>
-            ) : (
-              currentUsers.map((user) => (
-                <React.Fragment key={user.id}>
-                  <tr
-                    className="cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => handleUserClick(user.id)}
-                  >
-                    <td className="p-3">{user.name}</td>
-                    <td className="p-3">{user.status}</td>
+            </thead>
+            <tbody>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="text-center p-4 text-gray-500">
+                    No users found.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user._id} className="cursor-pointer hover:bg-gray-50 transition-colors">
+                    <td className="p-3">{user.fullName || user.username}</td>
+                    <td className="p-3">{user.isActive ? "Active" : "Blocked"}</td>
                     <td className="p-3 text-center">
-                      <StarRating rating={user.rating} />
+                      <StarRating rating={user.rating || 0} />
                     </td>
-                    <td className="p-3 text-center font-semibold">{user.posts}</td>
-                    <td className="p-3 text-center">
-                      <div className="flex justify-center gap-2">
-                        <button
-                          className={`px-3 py-1 rounded text-sm ${
-                            user.status === "Blocked"
-                              ? "bg-green-500 text-white hover:bg-green-600"
-                              : "bg-yellow-500 text-white hover:bg-yellow-600"
-                          }`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleBlockUser(user.id);
-                          }}
-                        >
-                          {user.status === "Blocked" ? "Unblock" : "Block"}
-                        </button>
-                        <button
-                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (
-                              window.confirm(
-                                "Are you sure you want to remove this user?"
-                              )
-                            ) {
-                              removeUser(user.id);
-                            }
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
+                    <td className="p-3 text-center font-semibold">{user.posts?.length || 0}</td>
+                    <td className="p-3 text-center flex justify-center gap-2">
+                      <button
+                        className={`px-3 py-1 rounded text-sm ${
+                          user.isActive
+                            ? "bg-yellow-500 text-white hover:bg-yellow-600"
+                            : "bg-green-500 text-white hover:bg-green-600"
+                        }`}
+                        onClick={() => handleToggleStatus(user)}
+                        disabled={loading}
+                      >
+                        {user.isActive ? "Block" : "Unblock"}
+                      </button>
+                      <button
+                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
+                        onClick={() => handleDeleteUser(user._id)}
+                        disabled={loading}
+                      >
+                        Remove
+                      </button>
                     </td>
                   </tr>
-
-                  <AnimatePresence>
-                    {selectedUserId === user.id && (
-                      <tr>
-                        <td colSpan="5" className="p-0">
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="overflow-hidden"
-                            style={{
-                              width: "100%",
-                              border: "1px solid rgba(0, 0, 0, 0.1)",
-                              borderRadius: "8px",
-                              padding: "10px",
-                              margin: "8px 0",
-                              backgroundColor: "white",
-                              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
-                            }}
-                          >
-                            <CardComponent
-                              profilePicture={user.profilePicture}
-                              username={user.name}
-                              email={user.email}
-                              phone={user.phone}
-                              posts={user.posts}
-                              status={user.status === "Blocked" ? "Offline" : "Online"}
-                            />
-                          </motion.div>
-                        </td>
-                      </tr>
-                    )}
-                  </AnimatePresence>
-                </React.Fragment>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="flex justify-center items-center gap-3 mt-4 flex-wrap text-sm md:text-base">
         <button
