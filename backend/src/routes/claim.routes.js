@@ -1,38 +1,31 @@
 // routes/claim.routes.js
 import express from "express";
 import { 
-    createClaim, 
-    getPostClaims, 
-    updateClaimStatus, 
-    getUserClaims,
-    getClaimStats,
-    getClaimDetails,
-    addClaimMessage,
-    getClaimMessages,
-    updateMeetingArrangements
+  createClaim, 
+  getPostClaims, 
+  updateClaimStatus, 
+  getUserClaims,
+  getClaimDetails,
+  addMessage,
+  getClaimStats
 } from "../controllers/claim.controllers.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 
-const claimRouter = express.Router();
+const router = express.Router();
 
-// All routes require authentication
-claimRouter.use(authenticate);
+router.use(authenticate);
 
-// Claim management
-claimRouter.post("/", createClaim);
-claimRouter.get("/stats", getClaimStats);
-claimRouter.get("/my-claims", getUserClaims);
-claimRouter.get("/:claimId", getClaimDetails);
+// Claim creation and listing
+router.post("/", createClaim);
+router.get("/my-claims", getUserClaims);
+router.get("/stats", getClaimStats);
 
 // Post-specific claims
-claimRouter.get("/post/:postId", getPostClaims);
+router.get("/post/:postId", getPostClaims);
 
-// Claim status and updates
-claimRouter.patch("/:claimId/status", updateClaimStatus);
-claimRouter.patch("/:claimId/meeting", updateMeetingArrangements);
+// Individual claim operations
+router.get("/:claimId", getClaimDetails);
+router.patch("/:claimId/status", updateClaimStatus);
+router.post("/:claimId/messages", addMessage);
 
-// Claim messaging
-claimRouter.post("/:claimId/messages", addClaimMessage);
-claimRouter.get("/:claimId/messages", getClaimMessages);
-
-export default claimRouter;
+export default router;

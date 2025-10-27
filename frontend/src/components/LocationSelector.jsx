@@ -1,4 +1,4 @@
-// components/LocationSelector.js
+// components/LocationSelector.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import LocationPicker from './LocationPicker';
 import { MdMyLocation, MdSearch, MdPlace, MdClear, MdCheck, MdEdit, MdExpandMore, MdExpandLess } from 'react-icons/md';
@@ -10,14 +10,15 @@ const LocationSelector = ({
   required = false,
   error = null
 }) => {
-  const [selectedLocation, setSelectedLocation] = useState(initialLocation);
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [address, setAddress] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showMap, setShowMap] = useState(false); // Start with map hidden
+  const [showMap, setShowMap] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [tempLocation, setTempLocation] = useState(null);
   const searchInputRef = useRef(null);
   const suggestionsRef = useRef(null);
 
@@ -29,19 +30,27 @@ const LocationSelector = ({
     west: 80.0
   };
 
-  // Convert to Leaflet format if initialLocation exists
+  // Initialize with initialLocation
   useEffect(() => {
-    if (initialLocation && initialLocation.coordinates) {
-      setSelectedLocation({
-        lat: initialLocation.coordinates[1],
-        lng: initialLocation.coordinates[0]
-      });
-      setIsConfirmed(true);
-      setShowMap(false);
-    } else if (initialLocation && initialLocation.lat) {
-      setSelectedLocation(initialLocation);
-      setIsConfirmed(true);
-      setShowMap(false);
+    if (initialLocation) {
+      let location;
+      if (initialLocation.coordinates) {
+        location = {
+          lat: initialLocation.coordinates[1],
+          lng: initialLocation.coordinates[0]
+        };
+      } else if (initialLocation.lat) {
+        location = initialLocation;
+      }
+      
+      if (location) {
+        setSelectedLocation(location);
+        setTempLocation(location);
+        setIsConfirmed(true);
+        setShowMap(false);
+        setAddress(initialLocation.address || '');
+        setSearchQuery(initialLocation.address || '');
+      }
     }
   }, [initialLocation]);
 
@@ -105,10 +114,12 @@ const LocationSelector = ({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // FIXED: This function properly calls onLocationSelect
   const handleLocationSelect = async (location) => {
-    setSelectedLocation(location);
+    console.log('📍 Location selected in LocationSelector:', location);
+    setTempLocation(location);
     setIsConfirmed(false);
-    setShowMap(true); // Show map when location is selected
+    setShowMap(true);
     
     // Reverse geocoding to get address
     try {
@@ -117,29 +128,44 @@ const LocationSelector = ({
       );
       const data = await response.json();
       
+      let locationAddress = 'Address not found';
       if (data && data.display_name) {
-        setAddress(data.display_name);
-        setSearchQuery(data.display_name);
-        
-        // Pass complete location data to parent
-        onLocationSelect({
-          coordinates: [location.lng, location.lat],
-          latitude: location.lat,
-          longitude: location.lng,
-          address: data.display_name,
-          addressDetails: data.address
-        });
+        locationAddress = data.display_name;
+        setAddress(locationAddress);
+        setSearchQuery(locationAddress);
+      } else {
+        setAddress(locationAddress);
+        setSearchQuery('');
       }
-    } catch (error) {
-      console.error('Error getting address:', error);
-      setAddress('Address lookup failed');
-      
-      onLocationSelect({
+
+      // Create the location data object for parent
+      const locationData = {
         coordinates: [location.lng, location.lat],
         latitude: location.lat,
         longitude: location.lng,
-        address: ''
-      });
+        address: locationAddress,
+        addressDetails: data.address || null
+      };
+      
+      console.log('📍 Calling parent onLocationSelect:', locationData);
+      // CRITICAL: Call the parent callback
+      onLocationSelect(locationData);
+      
+    } catch (error) {
+      console.error('Error getting address:', error);
+      setAddress('Address lookup failed');
+      setSearchQuery('');
+      
+      // Still call onLocationSelect even if address lookup fails
+      const locationData = {
+        coordinates: [location.lng, location.lat],
+        latitude: location.lat,
+        longitude: location.lng,
+        address: `Lat: ${location.lat}, Lng: ${location.lng}`,
+        addressDetails: null
+      };
+      console.log('📍 Calling parent onLocationSelect (fallback):', locationData);
+      onLocationSelect(locationData);
     }
   };
 
@@ -152,7 +178,7 @@ const LocationSelector = ({
     setSearchQuery(suggestion.display_name);
     setShowSuggestions(false);
     setSuggestions([]);
-    setShowMap(true); // Show map when suggestion is selected
+    setShowMap(true);
     handleLocationSelect(location);
   };
 
@@ -171,14 +197,13 @@ const LocationSelector = ({
           lat: parseFloat(data[0].lat),
           lng: parseFloat(data[0].lon)
         };
-        setShowMap(true); // Show map when search is performed
+        setShowMap(true);
         handleLocationSelect(location);
       } else {
-        setError('Location not found in Nepal. Please try a different search term.');
+        console.error('Location not found in Nepal');
       }
     } catch (error) {
       console.error('Error searching location:', error);
-      setError('Error searching for location. Please try again.');
     } finally {
       setIsSearching(false);
       setShowSuggestions(false);
@@ -197,7 +222,7 @@ const LocationSelector = ({
           // Check if location is within Nepal
           if (location.lat >= nepalBounds.south && location.lat <= nepalBounds.north && 
               location.lng >= nepalBounds.west && location.lng <= nepalBounds.east) {
-            setShowMap(true); // Show map when current location is used
+            setShowMap(true);
             handleLocationSelect(location);
           } else {
             alert('Your current location is outside Nepal. Please select a location within Nepal.');
@@ -218,6 +243,7 @@ const LocationSelector = ({
     setSuggestions([]);
     setShowSuggestions(false);
     setSelectedLocation(null);
+    setTempLocation(null);
     setAddress('');
     setIsConfirmed(false);
     setShowMap(false);
@@ -225,16 +251,23 @@ const LocationSelector = ({
   };
 
   const confirmLocation = () => {
-    if (selectedLocation) {
+    if (tempLocation) {
+      setSelectedLocation(tempLocation);
       setIsConfirmed(true);
       setShowMap(false);
       setShowSuggestions(false);
+      console.log('✅ Location confirmed in UI');
     }
+  };
+
+  const selectLocation = () => {
+    confirmLocation();
   };
 
   const editLocation = () => {
     setIsConfirmed(false);
     setShowMap(true);
+    setTempLocation(selectedLocation);
   };
 
   const toggleMap = () => {
@@ -282,14 +315,14 @@ const LocationSelector = ({
           </label>
           
           <div className="flex gap-2">
-            {!isConfirmed && selectedLocation && (
+            {!isConfirmed && tempLocation && (
               <button
                 type="button"
-                onClick={confirmLocation}
+                onClick={selectLocation}
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 <MdCheck className="h-4 w-4" />
-                Confirm
+                Confirm Location
               </button>
             )}
             {isConfirmed && (
@@ -299,7 +332,7 @@ const LocationSelector = ({
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 <MdEdit className="h-4 w-4" />
-                Edit
+                Change
               </button>
             )}
             <button
@@ -313,7 +346,7 @@ const LocationSelector = ({
           </div>
         </div>
 
-        {/* Search Bar with Autocomplete - Always on top */}
+        {/* Search Bar with Autocomplete */}
         <div className="mb-4 relative" ref={suggestionsRef}>
           <div className="flex gap-2">
             <div className="flex-1 relative">
@@ -357,7 +390,7 @@ const LocationSelector = ({
             </button>
           </div>
 
-          {/* Suggestions Dropdown - High z-index to appear above everything */}
+          {/* Suggestions Dropdown */}
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-64 overflow-y-auto">
               {suggestions.map((suggestion, index) => (
@@ -428,7 +461,7 @@ const LocationSelector = ({
           </div>
         )}
 
-        {/* Map Section - Shows only when toggled */}
+        {/* Map Section */}
         {showMap && !isConfirmed && (
           <div className="mb-4 rounded-lg overflow-hidden border border-purple-200">
             <div className="bg-purple-50 px-4 py-2 border-b border-purple-200">
@@ -438,7 +471,7 @@ const LocationSelector = ({
             </div>
             <LocationPicker 
               onLocationSelect={handleLocationSelect}
-              initialPosition={selectedLocation}
+              initialPosition={tempLocation}
               height="300px"
               bounds={nepalBounds}
             />
@@ -446,7 +479,7 @@ const LocationSelector = ({
         )}
 
         {/* Selected Location Info */}
-        {selectedLocation && (
+        {(tempLocation || selectedLocation) && (
           <div className={`rounded-lg p-4 border ${
             isConfirmed 
               ? 'bg-green-50 border-green-200' 
@@ -461,11 +494,11 @@ const LocationSelector = ({
                   <h4 className={`font-semibold ${
                     isConfirmed ? 'text-green-800' : 'text-blue-800'
                   }`}>
-                    {isConfirmed ? '✅ Location Confirmed' : '📍 Location Selected'}
+                    {isConfirmed ? '✅ Location Selected' : '📍 Location Preview'}
                   </h4>
                   {isConfirmed && (
                     <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
-                      Confirmed
+                      Selected
                     </span>
                   )}
                 </div>
@@ -480,43 +513,19 @@ const LocationSelector = ({
                     <div>
                       <span className="font-medium">Latitude:</span> 
                       <br />
-                      {selectedLocation.lat.toFixed(6)}
+                      {(tempLocation || selectedLocation).lat.toFixed(6)}
                     </div>
                     <div>
                       <span className="font-medium">Longitude:</span>
                       <br />
-                      {selectedLocation.lng.toFixed(6)}
+                      {(tempLocation || selectedLocation).lng.toFixed(6)}
                     </div>
                   </div>
                 </div>
-                {!isConfirmed && (
-                  <p className="text-xs text-blue-600 mt-3 font-medium">
-                    Click "Confirm" above to lock this location, or click on map to change
-                  </p>
-                )}
               </div>
             </div>
           </div>
         )}
-
-        {/* Step-by-step Instructions */}
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
-          <h5 className="text-sm font-semibold text-gray-700 mb-2">How to select location:</h5>
-          <div className="space-y-2 text-xs text-gray-600">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs">1</div>
-              <span><strong>Search</strong> - Type address or place name</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">2</div>
-              <span><strong>Select</strong> - Choose from suggestions or click on map</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">3</div>
-              <span><strong>Confirm</strong> - Click "Confirm" to finalize location</span>
-            </div>
-          </div>
-        </div>
 
         {/* Error Message */}
         {error && (

@@ -23,7 +23,7 @@ const createFoundPost = asyncHandler(async(req, res) => {
         locationFound, 
         foundDate, 
         category,
-        location // New location data from map
+        location // This comes as a JSON string from FormData
     } = req.body;
     
     const userId = req.user._id;
@@ -32,8 +32,19 @@ const createFoundPost = asyncHandler(async(req, res) => {
         throw new ApiError(400, "All fields are required");
     }
 
-    // Validate location data
-    if (!location || !location.coordinates || location.coordinates.length !== 2) {
+    // FIX: Parse location from string to object
+    let locationData;
+    try {
+        locationData = typeof location === 'string' ? JSON.parse(location) : location;
+        console.log('🔍 Parsed location data:', locationData);
+    } catch (parseError) {
+        console.error('❌ Error parsing location:', parseError);
+        throw new ApiError(400, "Invalid location data format");
+    }
+
+    // Validate location data AFTER parsing
+    if (!locationData || !locationData.coordinates || locationData.coordinates.length !== 2) {
+        console.log('❌ Location validation failed:', locationData);
         throw new ApiError(400, "Please select a location on the map");
     }
 
@@ -69,22 +80,21 @@ const createFoundPost = asyncHandler(async(req, res) => {
         locationFound, // Keep original text field for backward compatibility
         location: {    // New GeoJSON location field
             type: 'Point',
-            coordinates: location.coordinates, // [longitude, latitude]
-            address: location.address,
-            addressDetails: location.addressDetails
+            coordinates: locationData.coordinates, // [longitude, latitude]
+            address: locationData.address,
+            addressDetails: locationData.addressDetails
         },
         foundDate,
         category: category.toLowerCase(),
         user: userId
     });
     
-    console.log('Saved found post:', post);
+    console.log('✅ Saved found post:', post._id);
 
     return res.status(201).json(
         new ApiResponse(201, post, "Found post created successfully")
     );
 });
-
 // Lost Post Controllers
 const createLostPost = asyncHandler(async(req, res) => {
     console.log('Request body:', req.body);
@@ -96,7 +106,7 @@ const createLostPost = asyncHandler(async(req, res) => {
         locationLost, 
         lostDate, 
         category,
-        location // New location data from map
+        location // This comes as a JSON string from FormData
     } = req.body;
     
     const userId = req.user._id;
@@ -105,8 +115,19 @@ const createLostPost = asyncHandler(async(req, res) => {
         throw new ApiError(400, "All fields are required");
     }
 
-    // Validate location data
-    if (!location || !location.coordinates || location.coordinates.length !== 2) {
+    // FIX: Parse location from string to object
+    let locationData;
+    try {
+        locationData = typeof location === 'string' ? JSON.parse(location) : location;
+        console.log('🔍 Parsed location data:', locationData);
+    } catch (parseError) {
+        console.error('❌ Error parsing location:', parseError);
+        throw new ApiError(400, "Invalid location data format");
+    }
+
+    // Validate location data AFTER parsing
+    if (!locationData || !locationData.coordinates || locationData.coordinates.length !== 2) {
+        console.log('❌ Location validation failed:', locationData);
         throw new ApiError(400, "Please select a location on the map");
     }
 
@@ -127,16 +148,16 @@ const createLostPost = asyncHandler(async(req, res) => {
         locationLost, // Keep original text field for backward compatibility
         location: {   // New GeoJSON location field
             type: 'Point',
-            coordinates: location.coordinates, // [longitude, latitude]
-            address: location.address,
-            addressDetails: location.addressDetails
+            coordinates: locationData.coordinates, // [longitude, latitude]
+            address: locationData.address,
+            addressDetails: locationData.addressDetails
         },
         lostDate,
         category: category || 'Other',
         user: userId
     });
     
-    console.log('Created post:', post);
+    console.log('✅ Created lost post:', post._id);
 
     return res.status(201).json(
         new ApiResponse(201, post, "Lost post created successfully")

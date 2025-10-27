@@ -22,6 +22,8 @@ import PostDetail from "./pages/PostDetail.jsx";
 import Recommendations from "./pages/User/Recommendations.jsx";
 import FoundPostDetail from "./pages/User/FoundPostDetail.jsx";
 import ClaimsManagement from "./pages/User/ClaimsManagement.jsx";
+import ClaimsDashboard from "./components/claim/ClaimsDashboard.jsx";
+import ClaimDetail from "./components/claim/ClaimDetail.jsx";
 
 function App() {
   return (
@@ -52,7 +54,10 @@ function App() {
          <Route path="post/:type/:postId" element={<PostDetail />} />
         <Route path="user/recommendations/:postId" element={<Recommendations />} />
         <Route path="/found-posts/:postId" element={<FoundPostDetail />} />
-        <Route path="/user/claims/:postId" element={<ClaimsManagement />} />
+        {/* Claim  Pages */}
+       <Route path="/claims/dashboard" element={<ClaimsDashboard />} />
+       <Route path="/claims/:claimId" element={<ClaimDetail />} />
+       <Route path="/user/claims/:postId" element={<ClaimsManagement />} />
 
         <Route path="user/claims/:postId" element={<div style={{padding:'2rem',textAlign:'center'}}><h2>Claims Page Coming Soon!</h2></div>} />
          <Route path="*" element={<NotFound />} />  
