@@ -5,341 +5,331 @@ import { ApiError } from '../utils/ApiError.js';
 import { Claim } from '../models/claim.model.js';
 import { LostPost } from '../models/lostPost.model.js';
 import { FoundPost } from '../models/foundPost.model.js';
-import { User } from '../models/user.model.js';
-import notificationService from '../services/notifications.service.js';
+import mongoose from 'mongoose';
 
-// Create a new claim
 export const createClaim = asyncHandler(async (req, res) => {
-    const { 
-        postId, 
-        postType, 
-        description, 
-        contactInfo, 
-        evidence,
-        meetingArrangements 
-    } = req.body;
-    const userId = req.user._id;
+  const { postId, postType, claimMessage, contactInfo, evidence } = req.body;
+  const userId = req.user._id;
 
-    if (!postId || !postType || !description) {
-        throw new ApiError(400, "Post ID, post type, and description are required");
-    }
+  console.log('=== BACKEND CLAIM CREATION DEBUG ===');
+  console.log('1. Received postId:', postId);
+  console.log('2. Received postType:', postType);
+  console.log('3. User ID:', userId);
 
-    // Validate post type
-    if (!['LostPost', 'FoundPost'].includes(postType)) {
-        throw new ApiError(400, "Invalid post type");
-    }
+  // Validation
+  if (!postId || !postType || !claimMessage) {
+    throw new ApiError(400, "Post ID, post type, and claim message are required");
+  }
 
-    // Find the post and its owner
-    let post;
-    let postOwnerId;
+  if (!['LostPost', 'FoundPost'].includes(postType)) {
+    throw new ApiError(400, "Invalid post type");
+  }
 
-    if (postType === 'LostPost') {
-        post = await LostPost.findById(postId).populate('user');
-        if (!post) throw new ApiError(404, "Lost post not found");
-        postOwnerId = post.user._id;
+  // Find post and owner - DEBUG BOTH COLLECTIONS
+  console.log('4. Searching for post...');
+  
+  let post = null;
+  let foundInCollection = null;
+  
+  // Check both collections to see where the post actually exists
+  if (postType === 'LostPost') {
+    console.log('5. Searching in LostPost collection...');
+    post = await LostPost.findById(postId).populate('user');
+    if (post) {
+      foundInCollection = 'LostPost';
+      console.log('6. ✅ Found post in LostPost collection');
     } else {
-        post = await FoundPost.findById(postId).populate('user');
-        if (!post) throw new ApiError(404, "Found post not found");
-        postOwnerId = post.user._id;
+      console.log('6. ❌ Not found in LostPost, checking FoundPost...');
+      post = await FoundPost.findById(postId).populate('user');
+      if (post) {
+        foundInCollection = 'FoundPost';
+        console.log('6. ✅ Found post in FoundPost collection (but was looking in LostPost)');
+      }
     }
-
-    // Check if user is claiming their own post
-    if (postOwnerId.toString() === userId.toString()) {
-        throw new ApiError(400, "You cannot claim your own post");
+  } else { // FoundPost
+    console.log('5. Searching in FoundPost collection...');
+    post = await FoundPost.findById(postId).populate('user');
+    if (post) {
+      foundInCollection = 'FoundPost';
+      console.log('6. ✅ Found post in FoundPost collection');
+    } else {
+      console.log('6. ❌ Not found in FoundPost, checking LostPost...');
+      post = await LostPost.findById(postId).populate('user');
+      if (post) {
+        foundInCollection = 'LostPost';
+        console.log('6. ✅ Found post in LostPost collection (but was looking in FoundPost)');
+      }
     }
+  }
 
-    // Check for existing pending claim
-    const existingClaim = await Claim.findOne({
-        post: postId,
-        postType,
-        claimedBy: userId,
-        status: 'pending'
-    });
+  console.log('7. Final result - Post:', post);
+  console.log('8. Found in collection:', foundInCollection);
 
-    if (existingClaim) {
-        throw new ApiError(400, "You already have a pending claim for this post");
-    }
+  if (!post) {
+    console.log('9. ❌ POST NOT FOUND IN ANY COLLECTION');
+    throw new ApiError(404, `${postType.replace('Post', '')} post not found`);
+  }
 
-    // Create the claim with your schema structure
-    const claim = await Claim.create({
-        post: postId,
-        postType,
-        claimedBy: userId,
-        postOwner: postOwnerId,
-        description,
-        contactInfo: contactInfo || {},
-        evidence: evidence || [],
-        meetingArrangements: meetingArrangements || {},
-        metadata: {
-            ipAddress: req.ip,
-            userAgent: req.get('User-Agent'),
-            claimSource: 'web'
-        }
-    });
+  // Check if post is in the wrong collection
+  if (foundInCollection && foundInCollection !== postType) {
+    console.log('10. ⚠️ WARNING: Post found in', foundInCollection, 'but was looking in', postType);
+  }
 
-    // Populate for response
-    await claim.populate('claimedBy', 'fullName email avatar');
-    await claim.populate('postOwner', 'fullName email avatar');
-    await claim.populate('post', 'title description category images');
+  const postOwnerId = post.user._id;
 
-    // Send notification to post owner
-    try {
-        await notificationService.sendClaimNotification(claim._id);
-    } catch (emailError) {
-        console.error('Failed to send claim notification:', emailError);
-        // Don't throw error - claim was created successfully
-    }
+  // Prevent claiming own post
+  if (postOwnerId.toString() === userId.toString()) {
+    throw new ApiError(400, "You cannot claim your own post");
+  }
 
-    return res.status(201).json(
-        new ApiResponse(201, claim, "Claim created successfully")
-    );
+  // Check for duplicate pending claim
+  const existingClaim = await Claim.findOne({
+    post: postId,
+    postType: foundInCollection || postType, // Use the actual collection where post was found
+    claimant: userId,
+    status: 'pending'
+  });
+
+  if (existingClaim) {
+    throw new ApiError(400, "You already have a pending claim for this post");
+  }
+
+  // Create claim with the CORRECT postType (where the post was actually found)
+  const claim = await Claim.create({
+    post: postId,
+    postType: foundInCollection || postType,
+    claimant: userId,
+    postOwner: postOwnerId,
+    claimMessage,
+    contactInfo: contactInfo || {},
+    evidence: evidence || []
+  });
+
+  console.log('11. ✅ Claim created successfully:', claim._id);
+
+  // Populate response
+  const populatedClaim = await Claim.findById(claim._id)
+    .populate('claimant', 'fullName email avatar')
+    .populate('postOwner', 'fullName email avatar')
+    .populate('post', 'title description category images');
+
+  res.status(201).json(
+    new ApiResponse(201, populatedClaim, "Claim submitted successfully")
+  );
 });
 
-// Get claims for a specific post
+// Get claims for a post
 export const getPostClaims = asyncHandler(async (req, res) => {
-    const { postId } = req.params;
-    const { type, status, limit = 50, page = 1 } = req.query;
-    const userId = req.user._id;
+  const { postId } = req.params;
+  const { type } = req.query;
+  const userId = req.user._id;
 
-    if (!postId || !type) {
-        throw new ApiError(400, "Post ID and type are required");
-    }
+  if (!postId || !type) {
+    throw new ApiError(400, "Post ID and type are required");
+  }
 
-    const postType = type === 'lost' ? 'LostPost' : 'FoundPost';
+  const postType = type === 'lost' ? 'LostPost' : 'FoundPost';
 
-    // Verify user owns the post or is admin
-    let post;
-    if (postType === 'LostPost') {
-        post = await LostPost.findById(postId);
-    } else {
-        post = await FoundPost.findById(postId);
-    }
+  // Verify post ownership
+  const PostModel = postType === 'LostPost' ? LostPost : FoundPost;
+  const post = await PostModel.findById(postId);
 
-    if (!post) {
-        throw new ApiError(404, "Post not found");
-    }
+  if (!post) {
+    throw new ApiError(404, "Post not found");
+  }
 
-    if (post.user.toString() !== userId.toString()) {
-        throw new ApiError(403, "Not authorized to view claims for this post");
-    }
+  if (post.user.toString() !== userId.toString()) {
+    throw new ApiError(403, "Not authorized to view claims for this post");
+  }
 
-    const claims = await Claim.findByPost(postId, postType, {
-        status,
-        limit: parseInt(limit),
-        page: parseInt(page)
-    });
+  const claims = await Claim.findByPost(postId, postType);
 
-    return res.status(200).json(
-        new ApiResponse(200, claims, "Post claims fetched successfully")
-    );
+  res.status(200).json(
+    new ApiResponse(200, claims, "Claims fetched successfully")
+  );
 });
 
 // Update claim status
 export const updateClaimStatus = asyncHandler(async (req, res) => {
-    const { claimId } = req.params;
-    const { status, ownerMessage } = req.body;
-    const userId = req.user._id;
+  const { claimId } = req.params;
+  const { status, notes } = req.body;
+  const userId = req.user._id;
 
-    if (!['approved', 'rejected', 'under_review'].includes(status)) {
-        throw new ApiError(400, "Invalid status");
-    }
+  if (!['approved', 'rejected', 'under_review'].includes(status)) {
+    throw new ApiError(400, "Invalid status");
+  }
 
-    const claim = await Claim.findById(claimId)
-        .populate('postOwner', '_id')
-        .populate('claimedBy', 'email fullName notificationPreferences')
-        .populate('post', 'title');
+  const claim = await Claim.findById(claimId).populate('postOwner', '_id');
 
-    if (!claim) {
-        throw new ApiError(404, "Claim not found");
-    }
+  if (!claim) {
+    throw new ApiError(404, "Claim not found");
+  }
 
-    // Check if current user is the post owner
-    if (claim.postOwner._id.toString() !== userId.toString()) {
-        throw new ApiError(403, "You can only update claims on your own posts");
-    }
+  // Verify post ownership
+  if (claim.postOwner._id.toString() !== userId.toString()) {
+    throw new ApiError(403, "Only the post owner can update claim status");
+  }
 
-    // Use the instance method to update status
-    await claim.updateStatus(status, ownerMessage);
+  // Update claim
+  claim.status = status;
+  claim.resolution = {
+    status,
+    notes,
+    resolvedBy: userId,
+    resolvedAt: new Date()
+  };
 
-    // Populate for response
-    await claim.populate('claimedBy', 'fullName email avatar');
-    await claim.populate('postOwner', 'fullName email avatar');
+  await claim.save();
 
-    // Send status update notification to claimant
-    try {
-        await notificationService.sendClaimStatusUpdate(claimId, status, ownerMessage);
-    } catch (emailError) {
-        console.error('Failed to send status update notification:', emailError);
-    }
+  // Update post status if approved
+  if (status === 'approved') {
+    const PostModel = claim.postType === 'LostPost' ? LostPost : FoundPost;
+    const updateField = claim.postType === 'LostPost' ? { status: 'found' } : { status: 'returned' };
+    await PostModel.findByIdAndUpdate(claim.post, updateField);
+  }
 
-    // If claim is approved, update the post status
-    if (status === 'approved') {
-        try {
-            if (claim.postType === 'LostPost') {
-                await LostPost.findByIdAndUpdate(claim.post, { isFound: true });
-            } else {
-                await FoundPost.findByIdAndUpdate(claim.post, { isReturned: true });
-            }
-        } catch (postError) {
-            console.error('Error updating post status:', postError);
-        }
-    }
+  const updatedClaim = await Claim.findById(claimId)
+    .populate('claimant', 'fullName email avatar phoneNumber verified')
+    .populate('postOwner', 'fullName email avatar')
+    .populate('post', 'title description category images');
 
-    return res.status(200).json(
-        new ApiResponse(200, claim, "Claim status updated successfully")
-    );
+  res.status(200).json(
+    new ApiResponse(200, updatedClaim, "Claim status updated successfully")
+  );
 });
 
-// Add message to claim conversation
-export const addClaimMessage = asyncHandler(async (req, res) => {
-    const { claimId } = req.params;
-    const { message } = req.body;
-    const userId = req.user._id;
+// Add message to claim
+export const addMessage = asyncHandler(async (req, res) => {
+  const { claimId } = req.params;
+  const { message } = req.body;
+  const userId = req.user._id;
 
-    if (!message) {
-        throw new ApiError(400, "Message is required");
-    }
+  if (!message?.trim()) {
+    throw new ApiError(400, "Message is required");
+  }
 
-    const claim = await Claim.findById(claimId);
+  const claim = await Claim.findById(claimId);
 
-    if (!claim) {
-        throw new ApiError(404, "Claim not found");
-    }
+  if (!claim) {
+    throw new ApiError(404, "Claim not found");
+  }
 
-    // Check if user is part of this claim
-    if (!claim.canModify(userId)) {
-        throw new ApiError(403, "Not authorized to message in this claim");
-    }
+  if (!claim.canAccess(userId)) {
+    throw new ApiError(403, "Not authorized to message in this claim");
+  }
 
-    // Use instance method to add message
-    await claim.addMessage(userId, message);
+  await claim.addMessage(userId, message.trim());
 
-    // Populate for response
-    await claim.populate('messages.sender', 'fullName avatar');
-    const newMessage = claim.messages[claim.messages.length - 1];
+  const updatedClaim = await Claim.findById(claimId)
+    .populate('messages.sender', 'fullName avatar')
+    .populate('messages.readBy.user', 'fullName avatar');
 
-    return res.status(201).json(
-        new ApiResponse(201, newMessage, "Message added successfully")
-    );
+  const newMessage = updatedClaim.messages[updatedClaim.messages.length - 1];
+
+  res.status(201).json(
+    new ApiResponse(201, newMessage, "Message sent successfully")
+  );
 });
 
-// Get claim messages
-export const getClaimMessages = asyncHandler(async (req, res) => {
-    const { claimId } = req.params;
-    const userId = req.user._id;
-
-    const claim = await Claim.findById(claimId)
-        .populate('messages.sender', 'fullName avatar');
-
-    if (!claim) {
-        throw new ApiError(404, "Claim not found");
-    }
-
-    // Check if user is part of this claim
-    if (!claim.canModify(userId)) {
-        throw new ApiError(403, "Not authorized to view messages for this claim");
-    }
-
-    // Mark messages as read for this user
-    await claim.markMessagesAsRead(userId);
-
-    return res.status(200).json(
-        new ApiResponse(200, claim.messages, "Claim messages fetched successfully")
-    );
-});
-
-// Get claims made by the current user
+// Get user's claims (both made and received)
 export const getUserClaims = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
-    const { status, postType, limit = 20, page = 1 } = req.query;
+  const userId = req.user._id;
+  const { type, status, page = 1, limit = 20 } = req.query;
 
-    const claims = await Claim.findByUser(userId, {
-        status,
-        postType,
-        limit: parseInt(limit),
-        page: parseInt(page)
-    });
+  let query = {
+    $or: [{ claimant: userId }, { postOwner: userId }]
+  };
 
-    const total = await Claim.countDocuments({
-        $or: [
-            { claimedBy: userId },
-            { postOwner: userId }
-        ]
-    });
+  if (status) query.status = status;
+  if (type) query.postType = type === 'lost' ? 'LostPost' : 'FoundPost';
 
-    return res.status(200).json(
-        new ApiResponse(200, {
-            claims,
-            currentPage: parseInt(page),
-            totalPages: Math.ceil(total / limit),
-            totalClaims: total
-        }, "User claims fetched successfully")
-    );
-});
+  const claims = await Claim.find(query)
+    .populate('post', 'title description category images status')
+    .populate('claimant', 'fullName email avatar verified phoneNumber')
+    .populate('postOwner', 'fullName email avatar')
+    .sort({ createdAt: -1 })
+    .limit(limit * 1)
+    .skip((page - 1) * limit);
 
-// Get claim statistics
-export const getClaimStats = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
+  const total = await Claim.countDocuments(query);
 
-    const stats = await Claim.getUserClaimStats(userId);
-
-    return res.status(200).json(
-        new ApiResponse(200, stats, "Claim statistics fetched successfully")
-    );
+  res.status(200).json(
+    new ApiResponse(200, {
+      claims,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalClaims: total,
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    }, "User claims fetched successfully")
+  );
 });
 
 // Get single claim details
 export const getClaimDetails = asyncHandler(async (req, res) => {
-    const { claimId } = req.params;
-    const userId = req.user._id;
+  const { claimId } = req.params;
+  const userId = req.user._id;
 
-    const claim = await Claim.findById(claimId)
-        .populate('post', 'title description category images locationLost locationFound lostDate foundDate')
-        .populate('claimedBy', 'fullName email avatar phoneNumber verified')
-        .populate('postOwner', 'fullName email avatar')
-        .populate('messages.sender', 'fullName avatar');
+  const claim = await Claim.findById(claimId)
+    .populate('post', 'title description category images locationLost locationFound lostDate foundDate')
+    .populate('claimant', 'fullName email avatar phoneNumber verified')
+    .populate('postOwner', 'fullName email avatar')
+    .populate('messages.sender', 'fullName avatar')
+    .populate('resolution.resolvedBy', 'fullName avatar');
 
-    if (!claim) {
-        throw new ApiError(404, "Claim not found");
-    }
+  if (!claim) {
+    throw new ApiError(404, "Claim not found");
+  }
 
-    // Check if user is part of this claim
-    if (!claim.canModify(userId)) {
-        throw new ApiError(403, "Not authorized to view this claim");
-    }
+  if (!claim.canAccess(userId)) {
+    throw new ApiError(403, "Not authorized to view this claim");
+  }
 
-    return res.status(200).json(
-        new ApiResponse(200, claim, "Claim details fetched successfully")
-    );
+  // Mark messages as read for current user
+  await claim.markAsRead(userId);
+
+  res.status(200).json(
+    new ApiResponse(200, claim, "Claim details fetched successfully")
+  );
 });
 
-// Update meeting arrangements
-export const updateMeetingArrangements = asyncHandler(async (req, res) => {
-    const { claimId } = req.params;
-    const { proposedDate, proposedLocation, notes } = req.body;
-    const userId = req.user._id;
+// Get claim statistics
+export const getClaimStats = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
 
-    const claim = await Claim.findById(claimId);
-
-    if (!claim) {
-        throw new ApiError(404, "Claim not found");
+  const stats = await Claim.aggregate([
+    {
+      $match: {
+        $or: [
+          { claimant: new mongoose.Types.ObjectId(userId) },
+          { postOwner: new mongoose.Types.ObjectId(userId) }
+        ]
+      }
+    },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
     }
+  ]);
 
-    // Check if user is part of this claim
-    if (!claim.canModify(userId)) {
-        throw new ApiError(403, "Not authorized to update meeting arrangements");
-    }
+  const result = {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    under_review: 0
+  };
 
-    claim.meetingArrangements = {
-        proposedDate,
-        proposedLocation,
-        notes,
-        ...claim.meetingArrangements
-    };
+  stats.forEach(stat => {
+    result[stat._id] = stat.count;
+    result.total += stat.count;
+  });
 
-    await claim.save();
-
-    return res.status(200).json(
-        new ApiResponse(200, claim, "Meeting arrangements updated successfully")
-    );
+  res.status(200).json(
+    new ApiResponse(200, result, "Claim statistics fetched successfully")
+  );
 });

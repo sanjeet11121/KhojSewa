@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../config.js';
-import LocationSelector from '../components/LocationSelector'; // Import the location selector
+import LocationSelector from '../components/LocationSelector';
 
 const LostItemPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     itemName: '',
     category: 'Electronics',
-    location: '', // Text location for backward compatibility
-    locationData: null, // New location data from map
+    location: '',
+    locationData: null,
     date: '',
     description: '',
     images: [],
@@ -18,10 +18,10 @@ const LostItemPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [locationError, setLocationError] = useState('');
 
   const categories = ['Electronics', 'Stationeries', 'Clothing', 'Food', 'Toys', 'Other'];
 
-  // Check authentication
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
@@ -35,15 +35,27 @@ const LostItemPage = () => {
   };
 
   const handleLocationSelect = (locationData) => {
-    setFormData(prev => ({
-      ...prev,
-      locationData: locationData,
-      location: locationData.address || prev.location // Update text location with address
-    }));
+    console.log('Location selected in form:', locationData);
+    
+    if (locationData && locationData.coordinates) {
+      setFormData(prev => ({
+        ...prev,
+        locationData: locationData,
+        location: locationData.address || `Lat: ${locationData.latitude}, Lng: ${locationData.longitude}`
+      }));
+      setLocationError('');
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        locationData: null,
+        location: ''
+      }));
+      setLocationError('Please select a location on the map');
+    }
   };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files).slice(0, 3); // max 3 images
+    const files = Array.from(e.target.files).slice(0, 3);
     setFormData(prev => ({ ...prev, images: files }));
     setImagePreviews(files.map(file => URL.createObjectURL(file)));
   };
@@ -57,85 +69,135 @@ const LostItemPage = () => {
     setImagePreviews(newPreviews);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
+  setSuccess('');
+  setLoading(true);
 
-    try {
-      // Get user data from localStorage
-      const userString = localStorage.getItem('user');
-      const token = localStorage.getItem('accessToken');
-      
-      if (!token || !userString) {
-        setError('You must be logged in to post a lost item');
-        setLoading(false);
-        setTimeout(() => {
-          navigate('/signin');
-        }, 2000);
-        return;
-      }
+  console.log('🚀 Starting form submission...');
 
-      // Validation
-      if (!formData.locationData) {
-        setError('Please select a location on the map');
-        setLoading(false);
-        return;
-      }
-
-      const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.itemName);
-      formDataToSend.append('category', formData.category);
-      formDataToSend.append('locationLost', formData.location);
-      formDataToSend.append('lostDate', formData.date);
-      formDataToSend.append('description', formData.description);
-      
-      // Append location data as JSON string
-      formDataToSend.append('location', JSON.stringify(formData.locationData));
-      
-      // Append images
-      formData.images.forEach((image) => {
-        formDataToSend.append('images', image);
-      });
-
-      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-      
-      const res = await fetch(`${api}/api/v1/posts/lost`, {
-        method: 'POST',
-        headers: {
-          'Authorization': authToken
-        },
-        body: formDataToSend,
-        credentials: 'include'
-      });
-
-      const data = await res.json();
-      
-      if (!res.ok) {
-        setError(data.message || 'Failed to post lost item');
-      } else {
-        setSuccess('Lost item posted successfully!');
-        setFormData({
-          itemName: '',
-          category: 'Electronics',
-          location: '',
-          locationData: null,
-          date: '',
-          description: '',
-          images: [],
-        });
-        setImagePreviews([]);
-        setTimeout(() => {
-          navigate('/');
-        }, 2000);
-      }
-    } catch (err) {
-      setError('Network error: ' + (err.message || 'Unknown error'));
-    }
+  // Validation
+  if (!formData.locationData) {
+    setError('Please select a location on the map');
     setLoading(false);
-  };
+    return;
+  }
 
+  if (formData.images.length === 0) {
+    setError('Please upload at least one image');
+    setLoading(false);
+    return;
+  }
+
+  if (!formData.itemName.trim()) {
+    setError('Please enter item name');
+    setLoading(false);
+    return;
+  }
+
+  if (!formData.category) {
+    setError('Please select category');
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setError('You must be logged in');
+      setLoading(false);
+      return;
+    }
+
+    const formDataToSend = new FormData();
+    formDataToSend.append('title', formData.itemName);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('locationFound', formData.location);
+    formDataToSend.append('foundDate', formData.date);
+    formDataToSend.append('category', formData.category);
+    
+    // FIX: Ensure location data is properly formatted
+    const locationData = {
+      coordinates: formData.locationData.coordinates, // [longitude, latitude]
+      latitude: formData.locationData.latitude,
+      longitude: formData.locationData.longitude,
+      address: formData.locationData.address,
+      addressDetails: formData.locationData.addressDetails
+    };
+    
+    console.log('📍 Location data being sent:', locationData);
+    formDataToSend.append('location', JSON.stringify(locationData));
+    
+    // Append images
+    formData.images.forEach((img) => {
+      formDataToSend.append('images', img);
+    });
+
+    // Debug what we're sending
+    console.log('🔍 Data being sent to server:');
+    for (let [key, value] of formDataToSend.entries()) {
+      if (key === 'images') {
+        console.log(`🔍 ${key}:`, value.name, value.type, value.size);
+      } else {
+        console.log(`🔍 ${key}:`, value);
+      }
+    }
+
+    console.log('📤 Sending request to server...');
+    
+    const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    const response = await fetch(`${api}/api/v1/posts/found`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': authToken,
+      },
+      body: formDataToSend,
+    });
+
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response ok:', response.ok);
+
+    let data;
+    try {
+      data = await response.json();
+      console.log('📥 FULL Response data:', data);
+    } catch (parseError) {
+      console.error('❌ Error parsing response:', parseError);
+      throw new Error('Server returned invalid JSON response');
+    }
+
+    if (!response.ok) {
+      const errorMessage = data.message || data.error || (data.errors && data.errors[0]?.msg) || `Server error: ${response.status}`;
+      throw new Error(errorMessage);
+    }
+
+    // Success case
+    setSuccess('Found item posted successfully! Redirecting...');
+    
+    // Reset form
+    setFormData({
+      itemName: '',
+      category: '',
+      location: '',
+      locationData: null,
+      date: '',
+      description: '',
+      images: [],
+    });
+    setImagePreviews([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    
+    // Redirect after success
+    setTimeout(() => navigate('/'), 2000);
+
+  } catch (err) {
+    console.error('❌ Submission error:', err);
+    setError(err.message || 'Failed to post found item. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -201,12 +263,24 @@ const LostItemPage = () => {
 
               {/* Location Selector */}
               <div>
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                  Where did you lose this item? *
+                </label>
                 <LocationSelector
                   onLocationSelect={handleLocationSelect}
                   initialLocation={formData.locationData}
-                  label="Where did you lose this item? *"
                   required={true}
                 />
+                {locationError && (
+                  <div className="mt-2 text-red-500 text-sm bg-red-50 p-2 rounded">
+                    {locationError}
+                  </div>
+                )}
+                {formData.locationData && (
+                  <div className="mt-2 text-green-600 text-sm bg-green-50 p-2 rounded">
+                    ✅ Location selected: {formData.location}
+                  </div>
+                )}
               </div>
 
               {/* Date */}
@@ -294,10 +368,6 @@ const LostItemPage = () => {
                     ))}
                   </div>
                 )}
-                
-                <p className="mt-2 text-sm text-gray-500">
-                  Upload clear photos showing different angles of the item. First image will be used as the main photo.
-                </p>
               </div>
 
               {/* Submit Button */}
@@ -321,7 +391,7 @@ const LostItemPage = () => {
                 
                 {!formData.locationData && (
                   <p className="mt-2 text-sm text-red-600 text-center">
-                    Please select a location on the map to continue
+                    Please select a location by clicking on the map or using search
                   </p>
                 )}
               </div>
