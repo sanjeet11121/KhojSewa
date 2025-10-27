@@ -7,9 +7,9 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     try {
         let token = null;
 
-        console.log('Auth headers:', req.headers);
-        console.log('Authorization header:', req.headers.authorization);
-        console.log('Cookies:', req.cookies);
+        // console.log('Auth headers:', req.headers);
+        // console.log('Authorization header:', req.headers.authorization);
+        // console.log('Cookies:', req.cookies);
 
         // Prefer Authorization header
         if (req.headers && req.headers.authorization) {

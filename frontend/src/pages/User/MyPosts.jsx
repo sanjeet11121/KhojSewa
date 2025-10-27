@@ -102,10 +102,15 @@ const MyPosts = () => {
     navigate(`/user/recommendations/${postId}`);
   };
 
- const handleClaimsClick = (postId, e) => {
-  e.stopPropagation();
-  navigate(`/user/claims/${postId}`);
-};
+  const handleClaimsClick = (postId, type, e) => {
+    e.stopPropagation();
+    navigate(`/user/claims/${postId}?type=${type}`);
+  };
+
+  const handleClaimsDashboardClick = (e) => {
+    e.stopPropagation();
+    navigate('/claims/dashboard');
+  };
 
   if (loading) {
     return (
@@ -246,7 +251,7 @@ const MyPosts = () => {
                          focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
                          transition-colors duration-200 disabled:opacity-50 
                          disabled:cursor-not-allowed"
-              onClick={(e) => handleClaimsClick(post._id, e)}
+              onClick={(e) => handleClaimsClick(post._id, type, e)}
               disabled={deletingId === post._id}
             >
               See Claims

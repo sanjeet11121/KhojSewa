@@ -14,6 +14,19 @@ const lostPostSchema = new mongoose.Schema({
     images: [{
         type: String
     }],
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number], // [longitude, latitude]
+            required: true
+        },
+        address: String,
+        addressDetails: mongoose.Schema.Types.Mixed
+    },
     locationLost: {
         type: String,
         required: true
@@ -69,5 +82,8 @@ claims: [{
         default: false
     }
 }, { timestamps: true });
+
+// Create 2dsphere index for geospatial queries
+lostPostSchema.index({ location: '2dsphere' });
 
 export const LostPost = mongoose.model('LostPost', lostPostSchema);

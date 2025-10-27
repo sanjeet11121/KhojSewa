@@ -9,7 +9,9 @@ import {
   getMyPosts,
   getMyLostPosts,
   getMyFoundPosts,
-  updatePost
+  updatePost,
+  findPostsNearLocation,
+  getPostsForMap
 } from "../controllers/post.controllers.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import upload from "../middlewares/multer.middleware.js"; // not destructured
@@ -53,5 +55,9 @@ postRouter.delete("/:type/:postId", deletePost);
 //recommendations
 postRouter.get('/user/recommendations/lost/:postId', authenticate, getRecommendationsForLost);
 postRouter.get('/user/recommendations/found/:postId', authenticate, getRecommendationsForFound);
+
+//location-based post retrieval
+postRouter.get('/nearby', findPostsNearLocation);
+postRouter.get('/map', getPostsForMap);
 
 export default postRouter;
