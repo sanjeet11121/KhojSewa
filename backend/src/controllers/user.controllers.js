@@ -25,7 +25,8 @@ export const getCurrentUserProfile = asyncHandler(async (req, res) => {
  * @desc Update profile (fullName, phoneNumber)
  */
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { fullName, phoneNumber } = req.body;
+  const { fullName, phoneNumber, bio } = req.body;
+
 
   const user = await User.findById(req.user._id);
   if (!user) {
@@ -34,34 +35,49 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   if (fullName) user.fullName = fullName;
   if (phoneNumber) user.phoneNumber = phoneNumber;
+  if (bio) user.bio = bio;
 
   await user.save();
 
-  res.status(200).json(new ApiResponse(200, user, 'Profile updated successfully'));
+  const safeUser = await User.findById(req.user._id).select('-password -refreshToken');
+  res.status(200).json(new ApiResponse(200, safeUser, 'Profile updated successfully'));
+
 });
 
+/**
 /**
  * @desc Change password
  */
 export const changePassword = asyncHandler(async (req, res) => {
-  const { oldPassword, newPassword } = req.body;
+  const { currentPassword, newPassword, confirmPassword } = req.body;
 
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    throw new ApiError(400, "Please provide current, new, and confirm passwords");
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "New passwords do not match");
+  }
+
+  // Fetch user with password
   const user = await User.findById(req.user._id).select('+password');
-
   if (!user) {
-    throw new ApiError(404, 'User not found');
+    throw new ApiError(404, "User not found");
   }
 
-  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  // Check if current password is correct
+  const isMatch = await user.isPasswordCorrect(currentPassword);
   if (!isMatch) {
-    throw new ApiError(401, 'Old password is incorrect');
+    throw new ApiError(401, "Current password is incorrect");
   }
 
+  // Set new password; pre-save hook will hash it automatically
   user.password = newPassword;
   await user.save();
 
-  res.status(200).json(new ApiResponse(200, null, 'Password changed successfully'));
+  res.status(200).json(new ApiResponse(200, null, "Password changed successfully"));
 });
+
 
 /**
  * @desc Upload user avatar (image)
@@ -206,4 +222,14 @@ export const checkUserActiveStatus = asyncHandler(async (req, res) => {
       'User status fetched successfully'
     )
   );
+});
+export const deleteAccount = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  await User.findByIdAndDelete(req.user._id);
+
+  res.status(200).json(new ApiResponse(200, null, 'Account deleted successfully'));
 });

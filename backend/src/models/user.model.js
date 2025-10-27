@@ -31,10 +31,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  isActive:{
-    type: Boolean,
-    
+ isActive: {
+  type: Boolean,
+  default: true
+},
+
+    bio: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Bio cannot exceed 500 characters'],
+    default: ''
   },
+
   posts: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Post'
