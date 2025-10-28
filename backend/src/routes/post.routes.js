@@ -6,21 +6,29 @@ import {
   deletePost,
   getPostById,
   getAllLostPosts,
+  getAllFoundPosts, // Added this import
   getMyPosts,
   getMyLostPosts,
   getMyFoundPosts,
   updatePost,
   findPostsNearLocation,
-  getPostsForMap
+  getPostsForMap,
+  // Post statistics functions (for admin routes)
+  getUserPostStats,
+  getTopContributors,
+  getPostStatistics,
+  getUserPostingActivity
 } from "../controllers/post.controllers.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import upload from "../middlewares/multer.middleware.js"; // not destructured
+import { requireAdmin } from "../middlewares/auth.middleware.js"; // Add admin middleware
+import upload from "../middlewares/multer.middleware.js";
 import { getRecommendationsForFound, getRecommendationsForLost } from "../controllers/recommend.controllers.js";
 
 const postRouter = express.Router();
 
 // Public routes (no auth required)
 postRouter.get("/lost", getAllLostPosts);
+postRouter.get("/found", getAllFoundPosts); // Added public found posts route
 
 // Require authentication for all other post routes
 postRouter.use(authenticate);
@@ -52,12 +60,22 @@ postRouter.get("/:type/:postId", getPostById);
 // Delete post
 postRouter.delete("/:type/:postId", deletePost);
 
-//recommendations
-postRouter.get('/user/recommendations/lost/:postId', authenticate, getRecommendationsForLost);
-postRouter.get('/user/recommendations/found/:postId', authenticate, getRecommendationsForFound);
+// Claim management
+postRouter.post("/:type/:postId/claim", createClaim);
 
-//location-based post retrieval
+// Recommendations
+postRouter.get('/user/recommendations/lost/:postId', getRecommendationsForLost);
+postRouter.get('/user/recommendations/found/:postId', getRecommendationsForFound);
+
+// Location-based post retrieval
 postRouter.get('/nearby', findPostsNearLocation);
 postRouter.get('/map', getPostsForMap);
+
+// ADMIN POST STATISTICS ROUTES
+// These routes require admin authentication
+postRouter.get("/admin/stats/user/:userId/posts", authenticate, requireAdmin, getUserPostStats);
+postRouter.get("/admin/stats/contributors", authenticate, requireAdmin, getTopContributors);
+postRouter.get("/admin/stats/posts", authenticate, requireAdmin, getPostStatistics);
+postRouter.get("/admin/stats/posting-activity", authenticate, requireAdmin, getUserPostingActivity);
 
 export default postRouter;

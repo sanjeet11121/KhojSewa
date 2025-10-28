@@ -69,3 +69,16 @@ export const authenticate = asyncHandler(async (req, res, next) => {
         return next(new ApiError(500, 'Internal server error in authentication'));
     }
 });
+
+// Optional: Separate admin middleware
+export const requireAdmin = asyncHandler(async (req, res, next) => {
+    if (!req.user) {
+        throw new ApiError(401, 'Authentication required');
+    }
+
+    if (req.user.role !== 'admin') {
+        throw new ApiError(403, 'Admin access required');
+    }
+
+    next();
+});

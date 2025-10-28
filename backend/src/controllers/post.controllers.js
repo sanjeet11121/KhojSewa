@@ -568,6 +568,355 @@ const getPostsForMap = asyncHandler(async (req, res) => {
     );
 });
 
+// Post Statistics Functions
+
+// Get total posts count for a specific user
+const getUserPostStats = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const [totalLostPosts, totalFoundPosts, activeLostPosts, activeFoundPosts] = await Promise.all([
+        LostPost.countDocuments({ user: userId }),
+        FoundPost.countDocuments({ user: userId }),
+        LostPost.countDocuments({ user: userId, isFound: false }),
+        FoundPost.countDocuments({ user: userId, isReturned: false })
+    ]);
+
+    const totalPosts = totalLostPosts + totalFoundPosts;
+    const activePosts = activeLostPosts + activeFoundPosts;
+
+    return res.status(200).json(new ApiResponse(200, {
+        userId,
+        userInfo: {
+            fullName: user.fullName,
+            email: user.email,
+            joinDate: user.createdAt
+        },
+        postStats: {
+            totalPosts,
+            totalLostPosts,
+            totalFoundPosts,
+            activePosts,
+            activeLostPosts,
+            activeFoundPosts,
+            resolvedPosts: totalPosts - activePosts,
+            resolutionRate: totalPosts > 0 ? (((totalPosts - activePosts) / totalPosts) * 100).toFixed(1) : 0
+        }
+    }, "User post statistics fetched successfully"));
+});
+
+// Get top contributors (users with most posts)
+const getTopContributors = asyncHandler(async (req, res) => {
+    const { limit = 10, timeframe = 'all' } = req.query;
+    
+    let dateFilter = {};
+    if (timeframe !== 'all') {
+        const now = new Date();
+        let startDate = new Date();
+        
+        switch (timeframe) {
+            case 'day':
+                startDate.setDate(now.getDate() - 1);
+                break;
+            case 'week':
+                startDate.setDate(now.getDate() - 7);
+                break;
+            case 'month':
+                startDate.setMonth(now.getMonth() - 1);
+                break;
+            case 'year':
+                startDate.setFullYear(now.getFullYear() - 1);
+                break;
+            default:
+                startDate = null;
+        }
+        
+        if (startDate) {
+            dateFilter = { createdAt: { $gte: startDate } };
+        }
+    }
+
+    // Get users with their post counts
+    const [lostPostStats, foundPostStats] = await Promise.all([
+        LostPost.aggregate([
+            { $match: dateFilter },
+            { $group: { 
+                _id: '$user', 
+                lostPosts: { $sum: 1 },
+                activeLostPosts: { 
+                    $sum: { $cond: [{ $eq: ['$isFound', false] }, 1, 0] } 
+                }
+            }}
+        ]),
+        FoundPost.aggregate([
+            { $match: dateFilter },
+            { $group: { 
+                _id: '$user', 
+                foundPosts: { $sum: 1 },
+                activeFoundPosts: { 
+                    $sum: { $cond: [{ $eq: ['$isReturned', false] }, 1, 0] } 
+                }
+            }}
+        ])
+    ]);
+
+    // Combine the results
+    const userStatsMap = new Map();
+
+    // Process lost posts
+    lostPostStats.forEach(stat => {
+        userStatsMap.set(stat._id.toString(), {
+            userId: stat._id,
+            lostPosts: stat.lostPosts,
+            foundPosts: 0,
+            activeLostPosts: stat.activeLostPosts,
+            activeFoundPosts: 0
+        });
+    });
+
+    // Process found posts and combine
+    foundPostStats.forEach(stat => {
+        const userId = stat._id.toString();
+        if (userStatsMap.has(userId)) {
+            const existing = userStatsMap.get(userId);
+            existing.foundPosts = stat.foundPosts;
+            existing.activeFoundPosts = stat.activeFoundPosts;
+        } else {
+            userStatsMap.set(userId, {
+                userId: stat._id,
+                lostPosts: 0,
+                foundPosts: stat.foundPosts,
+                activeLostPosts: 0,
+                activeFoundPosts: stat.activeFoundPosts
+            });
+        }
+    });
+
+    // Convert to array and calculate totals
+    const userStats = Array.from(userStatsMap.values()).map(stat => ({
+        ...stat,
+        totalPosts: stat.lostPosts + stat.foundPosts,
+        activePosts: stat.activeLostPosts + stat.activeFoundPosts,
+        resolutionRate: (stat.lostPosts + stat.foundPosts) > 0 
+            ? (((stat.lostPosts + stat.foundPosts) - (stat.activeLostPosts + stat.activeFoundPosts)) / 
+               (stat.lostPosts + stat.foundPosts) * 100).toFixed(1)
+            : 0
+    }));
+
+    // Sort by total posts and limit
+    const topContributors = userStats
+        .sort((a, b) => b.totalPosts - a.totalPosts)
+        .slice(0, parseInt(limit));
+
+    // Populate user details
+    const userIds = topContributors.map(stat => stat.userId);
+    const users = await User.find({ _id: { $in: userIds } })
+        .select('fullName email avatar isVerified createdAt lastActive');
+
+    // Combine user details with stats
+    const contributorsWithDetails = topContributors.map(stat => {
+        const user = users.find(u => u._id.toString() === stat.userId.toString());
+        return {
+            ...stat,
+            user: user ? {
+                _id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                avatar: user.avatar,
+                isVerified: user.isVerified,
+                joinDate: user.createdAt,
+                lastActive: user.lastActive
+            } : null
+        };
+    });
+
+    return res.status(200).json(new ApiResponse(200, {
+        timeframe,
+        topContributors: contributorsWithDetails,
+        totalUsers: userStats.length
+    }, "Top contributors fetched successfully"));
+});
+
+// Get post statistics for admin dashboard
+ const getPostStatistics = asyncHandler(async (req, res) => {
+    const { timeframe = 'all' } = req.query;
+    
+    let dateFilter = {};
+    if (timeframe !== 'all') {
+        const now = new Date();
+        let startDate = new Date();
+        
+        switch (timeframe) {
+            case 'today':
+                startDate.setHours(0, 0, 0, 0);
+                break;
+            case 'week':
+                startDate.setDate(now.getDate() - 7);
+                break;
+            case 'month':
+                startDate.setMonth(now.getMonth() - 1);
+                break;
+            case 'year':
+                startDate.setFullYear(now.getFullYear() - 1);
+                break;
+            default:
+                startDate = null;
+        }
+        
+        if (startDate) {
+            dateFilter = { createdAt: { $gte: startDate } };
+        }
+    }
+
+    const [
+        totalLostPosts,
+        totalFoundPosts,
+        activeLostPosts,
+        activeFoundPosts,
+        newLostPostsToday,
+        newFoundPostsToday,
+        postsWithClaims,
+        resolvedPosts
+    ] = await Promise.all([
+        LostPost.countDocuments(dateFilter),
+        FoundPost.countDocuments(dateFilter),
+        LostPost.countDocuments({ ...dateFilter, isFound: false }),
+        FoundPost.countDocuments({ ...dateFilter, isReturned: false }),
+        LostPost.countDocuments({ 
+            createdAt: { 
+                $gte: new Date(new Date().setHours(0, 0, 0, 0)) 
+            } 
+        }),
+        FoundPost.countDocuments({ 
+            createdAt: { 
+                $gte: new Date(new Date().setHours(0, 0, 0, 0)) 
+            } 
+        }),
+        // Posts with at least one claim
+        LostPost.countDocuments({ 
+            ...dateFilter, 
+            'claims.0': { $exists: true } 
+        }) + FoundPost.countDocuments({ 
+            ...dateFilter, 
+            'claims.0': { $exists: true } 
+        }),
+        // Resolved posts (found items that are returned or lost items that are found)
+        LostPost.countDocuments({ ...dateFilter, isFound: true }) + 
+        FoundPost.countDocuments({ ...dateFilter, isReturned: true })
+    ]);
+
+    const totalPosts = totalLostPosts + totalFoundPosts;
+    const activePosts = activeLostPosts + activeFoundPosts;
+    const newPostsToday = newLostPostsToday + newFoundPostsToday;
+
+    return res.status(200).json(new ApiResponse(200, {
+        timeframe,
+        overview: {
+            totalPosts,
+            totalLostPosts,
+            totalFoundPosts,
+            activePosts,
+            resolvedPosts,
+            resolutionRate: totalPosts > 0 ? ((resolvedPosts / totalPosts) * 100).toFixed(1) : 0,
+            newPostsToday
+        },
+        detailed: {
+            lostPosts: {
+                total: totalLostPosts,
+                active: activeLostPosts,
+                resolved: totalLostPosts - activeLostPosts,
+                resolutionRate: totalLostPosts > 0 ? 
+                    (((totalLostPosts - activeLostPosts) / totalLostPosts) * 100).toFixed(1) : 0
+            },
+            foundPosts: {
+                total: totalFoundPosts,
+                active: activeFoundPosts,
+                resolved: totalFoundPosts - activeFoundPosts,
+                resolutionRate: totalFoundPosts > 0 ? 
+                    (((totalFoundPosts - activeFoundPosts) / totalFoundPosts) * 100).toFixed(1) : 0
+            },
+            engagement: {
+                postsWithClaims,
+                claimRate: totalPosts > 0 ? ((postsWithClaims / totalPosts) * 100).toFixed(1) : 0
+            }
+        }
+    }, "Post statistics fetched successfully"));
+});
+
+// Get user posting activity over time
+ const getUserPostingActivity = asyncHandler(async (req, res) => {
+    const { userId, period = 'month' } = req.query;
+    
+    let groupByFormat, dateRange;
+    const now = new Date();
+    
+    switch (period) {
+        case 'week':
+            groupByFormat = '%Y-%m-%d';
+            dateRange = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+        case 'month':
+            groupByFormat = '%Y-%m-%d';
+            dateRange = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            break;
+        case 'year':
+            groupByFormat = '%Y-%m';
+            dateRange = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+            break;
+        default:
+            groupByFormat = '%Y-%m-%d';
+            dateRange = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const matchStage = { 
+        createdAt: { $gte: dateRange } 
+    };
+    
+    if (userId) {
+        matchStage.user = new mongoose.Types.ObjectId(userId);
+    }
+
+    const [lostPostActivity, foundPostActivity] = await Promise.all([
+        LostPost.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: {
+                        date: { $dateToString: { format: groupByFormat, date: "$createdAt" } }
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { "_id.date": 1 } }
+        ]),
+        FoundPost.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: {
+                        date: { $dateToString: { format: groupByFormat, date: "$createdAt" } }
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { "_id.date": 1 } }
+        ])
+    ]);
+
+    return res.status(200).json(new ApiResponse(200, {
+        period,
+        userId: userId || 'all',
+        activity: {
+            lostPosts: lostPostActivity,
+            foundPosts: foundPostActivity
+        }
+    }, "User posting activity fetched successfully"));
+});
+
 export {
     createClaim,
     createFoundPost,
@@ -581,5 +930,10 @@ export {
     getMyFoundPosts,
     updatePost,
     findPostsNearLocation,
-    getPostsForMap
+    getPostsForMap,
+    getUserPostStats,
+    getTopContributors,
+    getPostStatistics,
+    getUserPostingActivity
+
 };

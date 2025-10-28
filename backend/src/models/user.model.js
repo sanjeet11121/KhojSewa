@@ -31,18 +31,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
- isActive: {
-  type: Boolean,
-  default: true
-},
-
-    bio: {
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  bio: {
     type: String,
     trim: true,
     maxlength: [500, 'Bio cannot exceed 500 characters'],
     default: ''
   },
-
   posts: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Post'
@@ -71,24 +69,29 @@ const userSchema = new mongoose.Schema({
   emailVerificationToken: String,
   emailVerificationExpires: Date,
   notificationPreferences: {
-        email: {
-            type: Boolean,
-            default: true
-        },
-        claims: {
-            type: Boolean,
-            default: true
-        },
-        matches: {
-            type: Boolean,
-            default: true
-        },
-        frequency: {
-            type: String,
-            enum: ['immediate', 'daily', 'weekly'],
-            default: 'immediate'
-        }
+    email: {
+      type: Boolean,
+      default: true
     },
+    claims: {
+      type: Boolean,
+      default: true
+    },
+    matches: {
+      type: Boolean,
+      default: true
+    },
+    frequency: {
+      type: String,
+      enum: ['immediate', 'daily', 'weekly'],
+      default: 'immediate'
+    }
+  },
+  // Add this new field for tracking online status
+  lastActive: {
+    type: Date,
+    default: Date.now
+  }
 }, {
   timestamps: true
 });
