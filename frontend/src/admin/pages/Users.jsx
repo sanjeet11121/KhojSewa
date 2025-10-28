@@ -1,83 +1,53 @@
 // FILE: src/pages/admin/Users.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useAdminStore } from "../../store/store";
-import CardComponent from "../components/cardComponent";
-import { FaStar } from "react-icons/fa";
-
-/*
-  Users page:
-  - Uses the admin store for users and actions
-  - Provides searching and pagination
-*/
-
-function StarRating({ rating }) {
-  const stars = Array.from({ length: 5 }, (_, i) => i + 1);
-  return (
-    <div className="flex justify-center">
-      {stars.map((star) => (
-        <FaStar
-          key={star}
-          className={`mx-0.5 ${star <= rating ? "text-yellow-400" : "text-gray-300"}`}
-        />
-      ))}
-    </div>
-  );
-}
 
 export default function Users() {
-  const {
-    users,
-    usersMeta,
-    loading,
-    fetchAllUsers,
-    toggleUserStatus,
-    deleteUser,
-  } = useAdminStore((s) => ({
-    users: s.users,
-    usersMeta: s.usersMeta,
-    loading: s.loading,
-    fetchAllUsers: s.fetchAllUsers,
-    toggleUserStatus: s.toggleUserStatus,
-    deleteUser: s.deleteUser,
-  }));
+  // ✅ Only extract needed store values, stable reference
+  const users = useAdminStore((s) => s.users);
+  const usersMeta = useAdminStore((s) => s.usersMeta);
+  const loading = useAdminStore((s) => s.loading);
+  const fetchAllUsers = useAdminStore((s) => s.fetchAllUsers);
+  const toggleUserStatus = useAdminStore((s) => s.toggleUserStatus);
+  const deleteUser = useAdminStore((s) => s.deleteUser);
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(usersMeta.page || 1);
 
+  // Fetch users on mount and whenever currentPage changes
   useEffect(() => {
     fetchAllUsers(currentPage, 10);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
+  // Update local currentPage if store page changes (pagination)
   useEffect(() => {
     setCurrentPage(usersMeta.page || 1);
   }, [usersMeta.page]);
 
   const handleToggleStatus = async (user) => {
     await toggleUserStatus(user._id, !user.isActive);
-    // refresh current page data
-    fetchAllUsers(currentPage, 10);
+    fetchAllUsers(currentPage, 10); // refresh page
   };
 
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("Are you sure you want to remove this user?")) return;
     const ok = await deleteUser(userId);
-    if (ok) {
-      // If deleteUser already updated local state, nothing more to do.
-    } else {
-      alert("Failed to remove user.");
-    }
+    if (!ok) alert("Failed to remove user.");
   };
 
-  const filteredUsers = (users || []).filter((user) =>
-    (user.fullName || user.username || "").toLowerCase().includes(search.toLowerCase())
-  );
+  // Memoize filtered users to avoid recalculating every render
+  const filteredUsers = useMemo(() => {
+    return (users || []).filter((user) =>
+      (user.fullName || user.username || "").toLowerCase().includes(search.toLowerCase())
+    );
+  }, [users, search]);
 
   const totalPages = usersMeta.totalPages || 1;
 
   return (
     <div className="pt-16 p-4">
       <h1 className="text-2xl md:text-3xl font-bold mb-4">User Management</h1>
+
       <input
         type="text"
         placeholder="Search user..."
@@ -95,7 +65,6 @@ export default function Users() {
               <tr>
                 <th className="p-2 md:p-3 text-left">Name</th>
                 <th className="p-2 md:p-3 text-left">Status</th>
-                <th className="p-2 md:p-3 text-center">Rating</th>
                 <th className="p-2 md:p-3 text-center">Posts</th>
                 <th className="p-2 md:p-3 text-center">Actions</th>
               </tr>
@@ -103,18 +72,18 @@ export default function Users() {
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center p-4 text-gray-500">
+                  <td colSpan="4" className="text-center p-4 text-gray-500">
                     No users found.
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <tr key={user._id} className="cursor-pointer hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={user._id}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
                     <td className="p-3">{user.fullName || user.username}</td>
                     <td className="p-3">{user.isActive ? "Active" : "Blocked"}</td>
-                    <td className="p-3 text-center">
-                      <StarRating rating={user.rating || 0} />
-                    </td>
                     <td className="p-3 text-center font-semibold">{user.posts?.length || 0}</td>
                     <td className="p-3 text-center flex justify-center gap-2">
                       <button

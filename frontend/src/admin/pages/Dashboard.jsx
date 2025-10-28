@@ -22,36 +22,30 @@ const COLORS1 = ["#12b95a", "#534e4b"];
 export default function Dashboard() {
   const { stats, loading, error, fetchAdminStats } = useAdminStore();
 
+  // ----------------- HOOKS -----------------
   useEffect(() => {
     fetchAdminStats();
   }, [fetchAdminStats]);
 
-  if (loading) return <p className="p-4">Loading dashboard...</p>;
-  if (error) return <p className="p-4 text-red-500">{error}</p>;
-  if (!stats) return <p className="p-4">No stats available</p>;
+  // Memoized chart data (called unconditionally at top)
+  const pieData = useMemo(() => [
+    { name: "Found", value: stats?.totalFoundPosts || 0 },
+    { name: "Lost", value: stats?.totalLostPosts || 0 },
+  ], [stats]);
 
-  // ✅ Chart Data Preparation
-  const pieData = [
-    { name: "Found", value: stats.totalFoundPosts || 0 },
-    { name: "Lost", value: stats.totalLostPosts || 0 },
-  ];
+  const userStatsData = useMemo(() => [
+    { name: "Active Users", value: stats?.activeUsers || 0 },
+    { name: "Inactive Users", value: (stats?.totalUsers || 0) - (stats?.activeUsers || 0) },
+  ], [stats]);
 
-  const userStatsData = [
-    { name: "Active Users", value: stats.activeUsers || 0 },
-    { name: "Inactive Users", value: (stats.totalUsers || 0) - (stats.activeUsers || 0) },
-  ];
+  const pendingPostsData = useMemo(() => [
+    { name: "Pending", pending: stats?.pendingPosts || 0 },
+  ], [stats]);
 
-  const pendingPostsData = [
-    { name: "Pending", pending: stats.pendingPosts || 0 },
-  ];
-
-  // ✅ Generate Monthly Line Chart Data if available
   const lineData = useMemo(() => {
-    if (stats.monthlyData && Array.isArray(stats.monthlyData)) {
-      // If backend sends [{month, found, lost}]
+    if (stats?.monthlyData && Array.isArray(stats.monthlyData)) {
       return stats.monthlyData;
     }
-    // Fallback placeholder data
     return [
       { month: "Jan", found: 4, lost: 6 },
       { month: "Feb", found: 7, lost: 5 },
@@ -62,11 +56,17 @@ export default function Dashboard() {
     ];
   }, [stats]);
 
+  // ----------------- CONDITIONAL RENDERING -----------------
+  if (loading) return <p className="p-4">Loading dashboard...</p>;
+  if (error) return <p className="p-4 text-red-500">{error}</p>;
+  if (!stats) return <p className="p-4">No stats available</p>;
+
+  // ----------------- RENDER -----------------
   return (
     <div className="pt-16 p-4">
       <h1 className="text-2xl md:text-3xl font-bold mb-6">Dashboard Overview</h1>
 
-      {/* ✅ Summary Cards */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-white p-4 rounded shadow flex items-center justify-between">
           <div>
@@ -85,7 +85,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ✅ Charts Section */}
+      {/* Charts Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Line Chart */}
         <div className="bg-white p-4 rounded shadow">
