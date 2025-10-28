@@ -1,6 +1,6 @@
-import { Bars3Icon, XMarkIcon, BellIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon, BellIcon, ChatBubbleLeftIcon } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import logo from "../assets/khojsewa_logo.png";
 
 function safeParseUser() {
@@ -56,19 +56,24 @@ function Navbar() {
     <nav className="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg fixed w-full top-0 left-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <a href="/" className="flex items-center space-x-0 text-xl font-bold text-white hover:text-indigo-200 transition-colors duration-200">
+          <Link to="/" className="flex items-center space-x-0 text-xl font-bold text-white hover:text-indigo-200 transition-colors duration-200">
             <img src={logo} alt="Logo" className="h-14 w-auto" />
             <span className="hidden sm:inline">KhojSewa</span>
-          </a>
+          </Link>
 
           <div className="hidden md:flex items-center space-x-6">
-            <a href="/" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Home</a>
-            {!isSignedIn && <a href="/signup" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Sign Up</a>}
-            {!isSignedIn && <a href="/signin" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Sign In</a>}
-            <a href="/about" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">About Us</a>
+            <Link to="/" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Home</Link>
+            {isSignedIn && <Link to="/user/dashboard" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Dashboard</Link>}
+            <Link to="/about" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">About Us</Link>
+            {!isSignedIn && <Link to="/signup" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Sign Up</Link>}
+            {!isSignedIn && <Link to="/signin" className="text-white hover:text-indigo-200 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Sign In</Link>}
 
             {isSignedIn && (
-              <div className="relative flex items-center space-x-4">
+              <div className="relative flex items-center space-x-3">
+                <Link to="/user/messages" className="text-white hover:text-indigo-200 relative" title="Messages">
+                  <ChatBubbleLeftIcon className="h-6 w-6" />
+                </Link>
+
                 <div className="relative">
                   <button onClick={() => setShowNotifications(!showNotifications)} className="text-white hover:text-indigo-200">
                     <BellIcon className="h-6 w-6" />
@@ -106,7 +111,6 @@ function Navbar() {
                         </div>
                       </div>
                       <button onClick={() => navigate('/User/UserInterface')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded">Manage Account</button>
-                      <button onClick={() => navigate('/user/dashboard')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">User Dashboard</button>
                       <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">Sign Out</button>
                     </div>
                   )}
@@ -125,13 +129,17 @@ function Navbar() {
 
       {open && (
         <div className="md:hidden bg-indigo-700 px-2 pt-2 pb-3 space-y-1">
-          <a href="/" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">Home</a>
-          {!isSignedIn && <a href="/signup" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">Sign Up</a>}
-          {!isSignedIn && <a href="/signin" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">Sign In</a>}
-          <a href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">About Us</a>
+          <Link to="/" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">Home</Link>
+          {isSignedIn && <Link to="/user/dashboard" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">Dashboard</Link>}
+          <Link to="/about" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">About Us</Link>
+          {!isSignedIn && <Link to="/signup" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">Sign Up</Link>}
+          {!isSignedIn && <Link to="/signin" className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-indigo-600 transition-colors duration-200">Sign In</Link>}
 
           {isSignedIn && (
             <div className="mt-2 space-y-2">
+              <Link to="/user/messages" className="w-full flex items-center text-white px-3 py-2 rounded-md hover:bg-indigo-600">
+                <ChatBubbleLeftIcon className="h-5 w-5 mr-2" /> Messages
+              </Link>
               <button onClick={() => setShowNotifications(!showNotifications)} className="w-full flex items-center text-white px-3 py-2 rounded-md hover:bg-indigo-600">
                 <BellIcon className="h-5 w-5 mr-2" /> Notifications
               </button>
@@ -153,12 +161,11 @@ function Navbar() {
                 <div className="flex items-center space-x-4 mb-4">
                   <img src={avatarUrl} alt="avatar" className="h-10 w-10 rounded-full border" />
                   <div>
-                    <p className="font-semibold">{user?.name || "User"}</p>
-                    <p className="text-sm text-gray-500">{user?.phone || "No phone"}</p>
+                    <p className="font-semibold">{user?.fullName || user?.name || "User"}</p>
+                    <p className="text-sm text-gray-500">{user?.phoneNumber || user?.phone || "No phone"}</p>
                   </div>
                 </div>
-                <button onClick={() => navigate('/User/Userinterface')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded">Manage Account</button>
-                <button onClick={() => navigate('/user/dashboard')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">User Dashboard</button>
+                <button onClick={() => navigate('/User/UserInterface')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded">Manage Account</button>
                 <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mt-1">Sign Out</button>
               </div>
             </div>

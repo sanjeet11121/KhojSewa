@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import Navbar from "../../components/Navbar";
 
 const UserInterface = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const UserInterface = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   /* ------------------------- Fetch user and posts ------------------------- */
   useEffect(() => {
@@ -84,13 +86,30 @@ const UserInterface = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => setAvatarPreview(reader.result);
     reader.readAsDataURL(file);
 
+    setIsUploadingAvatar(true);
+
     try {
       const formData = new FormData();
       formData.append("avatar", file);
+
+      console.log('Uploading avatar:', file.name, file.type, file.size);
 
       const token = localStorage.getItem("accessToken");
       const res = await fetch("http://localhost:8000/api/v1/users/upload-avatar", {
@@ -99,17 +118,35 @@ const UserInterface = () => {
         body: formData,
       });
 
+      console.log('Upload response status:', res.status);
       const data = await res.json();
+      console.log('Upload response data:', data);
+
       if (res.ok) {
-        setUser((prev) => ({ ...prev, avatar: data.data.avatar }));
-        setAvatarPreview(data.data.avatar);
-        alert("Avatar updated successfully!");
+        const newAvatarUrl = data.data.avatar;
+        
+        // Update state
+        setUser((prev) => ({ ...prev, avatar: newAvatarUrl }));
+        setAvatarPreview(newAvatarUrl);
+        
+        // Update localStorage so navbar and other components get the new avatar
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        storedUser.avatar = newAvatarUrl;
+        localStorage.setItem('user', JSON.stringify(storedUser));
+        
+        // Auto-refresh after brief delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
+        console.error('Upload failed:', data);
         alert(data.message || "Failed to upload avatar.");
+        setIsUploadingAvatar(false);
       }
     } catch (err) {
-      console.error(err);
-      alert("Error uploading avatar.");
+      console.error('Avatar upload error:', err);
+      alert("Error uploading avatar: " + err.message);
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -221,6 +258,7 @@ const UserInterface = () => {
   /* ------------------------- JSX ------------------------- */
   return (
     <>
+      <Navbar />
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -276,13 +314,24 @@ const UserInterface = () => {
                 accept="image/*"
                 onChange={handleAvatarChange}
                 className="hidden"
+                disabled={isUploadingAvatar}
               />
-              <div
-                className="absolute bottom-0 right-0 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full cursor-pointer"
-                onClick={handleAvatarClick}
-              >
-                Change
-              </div>
+              {isUploadingAvatar && (
+                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-1"></div>
+                    <span className="text-white text-xs font-medium">Uploading...</span>
+                  </div>
+                </div>
+              )}
+              {!isUploadingAvatar && (
+                <div
+                  className="absolute bottom-0 right-0 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full cursor-pointer hover:bg-indigo-700 transition"
+                  onClick={handleAvatarClick}
+                >
+                  Change
+                </div>
+              )}
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-800">

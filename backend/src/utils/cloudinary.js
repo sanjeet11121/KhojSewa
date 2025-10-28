@@ -9,20 +9,47 @@ cloudinary.config({
 
 const uploadOnCloudinary = async(localFilePath) => {
     try {
-        if (!localFilePath) return null
-            //upload the file on cloudinary 
+        if (!localFilePath) {
+            console.error('uploadOnCloudinary: No file path provided');
+            return null;
+        }
+
+        // Check if file exists
+        if (!fs.existsSync(localFilePath)) {
+            console.error('uploadOnCloudinary: File does not exist at path:', localFilePath);
+            return null;
+        }
+
+        console.log('uploadOnCloudinary: Uploading file:', localFilePath);
+        console.log('Cloudinary config:', {
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY ? '***' : 'MISSING',
+            api_secret: process.env.CLOUDINARY_API_SECRET ? '***' : 'MISSING'
+        });
+
+        //upload the file on cloudinary 
         const response = await cloudinary.uploader.upload(localFilePath, {
             resource_type: "auto"
         })
 
         //file has been uploaded successfully 
-        // console.log("file is uplodeded in cloudinary ", response.url);
+        console.log("File uploaded to Cloudinary successfully:", response.secure_url);
         fs.unlinkSync(localFilePath)
         return response
 
     } catch (error) {
-        fs.unlinkSync(localFilePath)
-            //remove the locally saved tem file as the upload operation got failed 
+        console.error('uploadOnCloudinary error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            name: error.name,
+            stack: error.stack
+        });
+        
+        // Clean up file if it exists
+        if (fs.existsSync(localFilePath)) {
+            fs.unlinkSync(localFilePath)
+        }
+        //remove the locally saved temp file as the upload operation got failed 
         return null;
     }
 }

@@ -15,6 +15,7 @@ const Recommendations = () => {
   const [claimingPostId, setClaimingPostId] = useState(null);
   const [claimMessage, setClaimMessage] = useState("");
   const [currentRecommendation, setCurrentRecommendation] = useState(null);
+  const [userClaims, setUserClaims] = useState(new Set());
 
   useEffect(() => {
     async function getRecommendations() {
@@ -54,8 +55,42 @@ const Recommendations = () => {
       }
     }
 
+    async function getUserClaims() {
+      try {
+        const result = await claimApi.getUserClaims();
+        console.log('🔍 User claims result:', result);
+        
+        if (result.success && result.data) {
+          const claimedPostIds = new Set(
+            result.data
+              .filter(claim => claim.status === 'pending' || claim.status === 'approved')
+              .map(claim => claim.post.toString())
+          );
+          
+          console.log('📋 Claimed post IDs:', Array.from(claimedPostIds));
+          setUserClaims(claimedPostIds);
+          
+          // Update recommendations to reflect claim status
+          setRecommendations(prev => prev.map(rec => {
+            const isClaimed = claimedPostIds.has(rec.post.id.toString());
+            console.log(`📝 Post ${rec.post.id} claimed status:`, isClaimed);
+            return {
+              ...rec,
+              post: {
+                ...rec.post,
+                hasClaimed: isClaimed
+              }
+            };
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching user claims:', err);
+      }
+    }
+
     if (postId) {
       getRecommendations();
+      getUserClaims();
     }
   }, [postId, postType]);
 
@@ -67,11 +102,20 @@ const Recommendations = () => {
     setClaimingPostId(postId);
   };
 
-  const handlePostClick = (post) => {
-    if (post.type === 'lost') {
-      navigate(`/lost-posts/${post.id}`);
-    } else {
-      navigate(`/found-posts/${post.id}`);
+  const handlePostClick = async (post) => {
+    try {
+      // Determine the correct post type based on the post data
+      const postType = post.type || (post.lostDate ? 'lost' : 'found');
+      
+      if (postType === 'lost') {
+        navigate(`/lost-posts/${post.id}`);
+      } else {
+        navigate(`/found-posts/${post.id}`);
+      }
+    } catch (error) {
+      console.error('Error navigating to post details:', error);
+      // Fallback navigation
+      navigate(`/posts/${post.id}`);
     }
   };
 
@@ -134,12 +178,21 @@ const Recommendations = () => {
         setClaimMessage("");
         setCurrentRecommendation(null);
         
+        // Add the claimed post ID to userClaims set
+        setUserClaims(prev => {
+          const newSet = new Set([...prev, postId.toString()]);
+          console.log('✅ Updated userClaims set:', Array.from(newSet));
+          return newSet;
+        });
+        
         // Update the recommendation to show it's claimed
-        setRecommendations(prev => prev.map(rec => 
-          rec.post.id === postId 
-            ? { ...rec, post: { ...rec.post, hasClaimed: true } }
-            : rec
-        ));
+        setRecommendations(prev => prev.map(rec => {
+          if (rec.post.id === postId) {
+            console.log('✅ Marking post as claimed:', postId);
+            return { ...rec, post: { ...rec.post, hasClaimed: true } };
+          }
+          return rec;
+        }));
       } else {
         alert(`❌ Failed: ${result.error}`);
       }
@@ -516,7 +569,7 @@ const Recommendations = () => {
                       <span>View Details</span>
                       <span className="text-lg">→</span>
                     </button>
-                    {!rec.post.hasClaimed ? (
+                    {!userClaims.has(rec.post.id.toString()) && !rec.post.hasClaimed ? (
                       <button
                         onClick={(e) => handleClaimButtonClick(rec.post.id, rec, e)}
                         className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105"

@@ -12,8 +12,14 @@ const ChatPage = ({ user }) => {
         loading,
         fetchChats,
         fetchMessages,
+        sendMessage,
         joinChat,
-        leaveChat
+        leaveChat,
+        startTyping,
+        stopTyping,
+        markAsRead,
+        messagesEndRef,
+        scrollToBottom
     } = useChat();
 
     useEffect(() => {
@@ -45,11 +51,19 @@ const ChatPage = ({ user }) => {
                     activeChat={activeChat}
                     onSelectChat={handleSelectChat}
                     loading={loading}
+                    currentUser={user}
                 />
                 
                 <ChatWindow
                     chat={activeChat}
                     currentUser={user}
+                    messages={messages}
+                    onSendMessage={sendMessage}
+                    onStartTyping={startTyping}
+                    onStopTyping={stopTyping}
+                    onMarkAsRead={markAsRead}
+                    messagesEndRef={messagesEndRef}
+                    scrollToBottom={scrollToBottom}
                 />
             </div>
         </div>

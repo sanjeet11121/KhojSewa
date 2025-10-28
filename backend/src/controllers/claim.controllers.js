@@ -5,6 +5,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { Claim } from '../models/claim.model.js';
 import { LostPost } from '../models/lostPost.model.js';
 import { FoundPost } from '../models/foundPost.model.js';
+import { Chat } from '../models/chat.model.js';
 import mongoose from 'mongoose';
 
 export const createClaim = asyncHandler(async (req, res) => {
@@ -37,13 +38,13 @@ export const createClaim = asyncHandler(async (req, res) => {
     post = await LostPost.findById(postId).populate('user');
     if (post) {
       foundInCollection = 'LostPost';
-      console.log('6. ✅ Found post in LostPost collection');
+      console.log('6. Found post in LostPost collection');
     } else {
-      console.log('6. ❌ Not found in LostPost, checking FoundPost...');
+      console.log('6. Not found in LostPost, checking FoundPost...');
       post = await FoundPost.findById(postId).populate('user');
       if (post) {
         foundInCollection = 'FoundPost';
-        console.log('6. ✅ Found post in FoundPost collection (but was looking in LostPost)');
+        console.log('6. Found post in FoundPost collection (but was looking in LostPost)');
       }
     }
   } else { // FoundPost
@@ -51,13 +52,13 @@ export const createClaim = asyncHandler(async (req, res) => {
     post = await FoundPost.findById(postId).populate('user');
     if (post) {
       foundInCollection = 'FoundPost';
-      console.log('6. ✅ Found post in FoundPost collection');
+      console.log('6. Found post in FoundPost collection');
     } else {
-      console.log('6. ❌ Not found in FoundPost, checking LostPost...');
+      console.log('6. Not found in FoundPost, checking LostPost...');
       post = await LostPost.findById(postId).populate('user');
       if (post) {
         foundInCollection = 'LostPost';
-        console.log('6. ✅ Found post in LostPost collection (but was looking in FoundPost)');
+        console.log('6. Found post in LostPost collection (but was looking in FoundPost)');
       }
     }
   }
@@ -66,13 +67,13 @@ export const createClaim = asyncHandler(async (req, res) => {
   console.log('8. Found in collection:', foundInCollection);
 
   if (!post) {
-    console.log('9. ❌ POST NOT FOUND IN ANY COLLECTION');
+    console.log('9. POST NOT FOUND IN ANY COLLECTION');
     throw new ApiError(404, `${postType.replace('Post', '')} post not found`);
   }
 
   // Check if post is in the wrong collection
   if (foundInCollection && foundInCollection !== postType) {
-    console.log('10. ⚠️ WARNING: Post found in', foundInCollection, 'but was looking in', postType);
+    console.log('10. WARNING: Post found in', foundInCollection, 'but was looking in', postType);
   }
 
   const postOwnerId = post.user._id;
@@ -105,7 +106,7 @@ export const createClaim = asyncHandler(async (req, res) => {
     evidence: evidence || []
   });
 
-  console.log('11. ✅ Claim created successfully:', claim._id);
+  console.log('11. Claim created successfully:', claim._id);
 
   // Populate response
   const populatedClaim = await Claim.findById(claim._id)
@@ -198,7 +199,7 @@ export const updateClaimStatus = asyncHandler(async (req, res) => {
   );
 });
 
-// Add message to claim
+// Add message to claim (synced with chat system)
 export const addMessage = asyncHandler(async (req, res) => {
   const { claimId } = req.params;
   const { message } = req.body;
@@ -208,18 +209,75 @@ export const addMessage = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Message is required");
   }
 
-  const claim = await Claim.findById(claimId);
+  const claim = await Claim.findById(claimId)
+    .populate('claimant', 'fullName avatar email')
+    .populate('postOwner', 'fullName avatar email');
 
   if (!claim) {
     throw new ApiError(404, "Claim not found");
   }
 
-  if (!claim.canAccess(userId)) {
+  // Check authorization - compare with populated _id fields
+  const isClaimant = claim.claimant._id.toString() === userId.toString();
+  const isPostOwner = claim.postOwner._id.toString() === userId.toString();
+  
+  if (!isClaimant && !isPostOwner) {
     throw new ApiError(403, "Not authorized to message in this claim");
   }
 
+  // Add message to claim
   await claim.addMessage(userId, message.trim());
 
+  console.log('=== CLAIM MESSAGE DEBUG ===');
+  console.log('Claim ID:', claimId);
+  console.log('Sender ID:', userId);
+  console.log('Message:', message.trim());
+
+  // Sync with chat system - create or update chat
+  let chat = await Chat.findOne({ claim: claimId });
+  
+  console.log('Existing chat found:', !!chat);
+  
+  if (!chat) {
+    // Create new chat linked to this claim
+    const participants = [claim.claimant._id, claim.postOwner._id];
+    console.log('Creating new chat with participants:', participants);
+    chat = await Chat.create({
+      participants,
+      claim: claimId,
+      chatType: 'claim',
+      chatName: `Claim Discussion`,
+      messages: []
+    });
+    console.log('New chat created:', chat._id);
+  }
+
+  // Add message to chat
+  const chatMessage = {
+    sender: userId,
+    content: message.trim(),
+    messageType: 'text',
+    readBy: [{
+      user: userId,
+      readAt: new Date()
+    }]
+  };
+
+  chat.messages.push(chatMessage);
+  chat.lastMessage = chat.messages[chat.messages.length - 1]._id;
+  await chat.save();
+  
+  console.log('Chat saved with', chat.messages.length, 'messages');
+  console.log('Chat details:', {
+    _id: chat._id,
+    participants: chat.participants,
+    claim: chat.claim,
+    chatType: chat.chatType,
+    messagesCount: chat.messages.length,
+    settings: chat.settings
+  });
+
+  // Return updated claim message
   const updatedClaim = await Claim.findById(claimId)
     .populate('messages.sender', 'fullName avatar')
     .populate('messages.readBy.user', 'fullName avatar');

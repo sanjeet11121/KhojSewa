@@ -1,4 +1,4 @@
-// context/SocketContext.js
+// context/SocketContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
@@ -19,7 +19,7 @@ export const SocketProvider = ({ children, user }) => {
 
     useEffect(() => {
         if (user) {
-            const newSocket = io(process.env.REACT_APP_BACKEND_URL, {
+            const newSocket = io('http://localhost:8000', {
                 auth: {
                     token: localStorage.getItem('accessToken')
                 }

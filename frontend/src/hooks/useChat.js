@@ -16,14 +16,14 @@ export const useChat = () => {
     // Fetch user's chats
     const fetchChats = async () => {
         try {
-            const response = await fetch('/api/chats', {
+            const response = await fetch('http://localhost:8000/api/v1/chat', {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
                 }
             });
             const data = await response.json();
             if (data.success) {
-                setChats(data.data.chats);
+                setChats(data.data.chats || []);
             }
         } catch (error) {
             console.error('Error fetching chats:', error);
@@ -36,7 +36,7 @@ export const useChat = () => {
         
         setLoading(true);
         try {
-            const response = await fetch(`/api/chats/${chatId}/messages?page=${pageNum}&limit=50`, {
+            const response = await fetch(`http://localhost:8000/api/v1/chat/${chatId}/messages?page=${pageNum}&limit=50`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
                 }
@@ -45,11 +45,11 @@ export const useChat = () => {
             
             if (data.success) {
                 if (pageNum === 1) {
-                    setMessages(data.data.messages);
+                    setMessages(data.data.messages || []);
                 } else {
-                    setMessages(prev => [...data.data.messages, ...prev]);
+                    setMessages(prev => [...(data.data.messages || []), ...prev]);
                 }
-                setHasMore(data.data.hasMore);
+                setHasMore(data.data.hasMore || false);
                 setPage(pageNum);
             }
         } catch (error) {
