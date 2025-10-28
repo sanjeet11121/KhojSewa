@@ -4,22 +4,18 @@ import { useParams } from "react-router-dom";
 import CardComponent from "../components/cardComponent";
 import { useAdminStore } from "../../store/store";
 
-/*
-  UserDetailPage: Uses store.fetchUserById and reads userDetail from store.
-*/
-
 export default function UserDetailPage() {
   const { id } = useParams();
 
-  const { userDetail, userDetailLoading, fetchUserById } = useAdminStore((s) => ({
-    userDetail: s.userDetail,
-    userDetailLoading: s.userDetailLoading,
-    fetchUserById: s.fetchUserById,
-  }));
+  // ✅ Stable selectors from zustand
+  const userDetail = useAdminStore((s) => s.userDetail);
+  const userDetailLoading = useAdminStore((s) => s.userDetailLoading);
+  const fetchUserById = useAdminStore((s) => s.fetchUserById);
 
+  // ✅ Fetch user details only when id changes
   useEffect(() => {
     if (id) fetchUserById(id);
-  }, [id, fetchUserById]);
+  }, [id]);
 
   if (userDetailLoading) return <p className="p-6 text-gray-500">Loading...</p>;
   if (!userDetail) return <p className="p-6 text-gray-500">User not found.</p>;

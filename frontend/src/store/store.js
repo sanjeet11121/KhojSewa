@@ -2,16 +2,17 @@
 import { create } from "zustand";
 import axios from "axios";
 
-// ========== AUTH HEADERS UTILITY ==========
+// ========== AUTH TOKEN UTILITY ==========
 const getToken = () => {
-  // ✅ PRIORITY: Use adminToken if present
-  return (
-    // localStorage.getItem("adminToken") ||
-    localStorage.getItem("token") ||
-    null
-  );
+  // ✅ Prioritize accessToken stored by login
+  const access = localStorage.getItem("accessToken");
+  if (access) return access;
+
+  // Fallbacks if older keys are used
+  return localStorage.getItem("token") || localStorage.getItem("admin") || null;
 };
-// helper to extract useful error message from axios errors
+
+// Helper to extract meaningful error message from Axios
 const extractError = (err) => {
   console.error("API error:", err);
   return (
@@ -29,8 +30,6 @@ const adminAPI = axios.create({
   baseURL: "http://localhost:8000/api/v1/admin",
   withCredentials: true,
 });
-
-// Inject token BEFORE each request
 adminAPI.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -42,7 +41,6 @@ const postsAPI = axios.create({
   baseURL: "http://localhost:8000/api/v1/posts",
   withCredentials: true,
 });
-
 postsAPI.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -54,7 +52,6 @@ const notificationsAPI = axios.create({
   baseURL: "http://localhost:8000/api/v1/notifications",
   withCredentials: true,
 });
-
 notificationsAPI.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -84,7 +81,7 @@ export const useAdminStore = create((set, get) => ({
   notifications: [],
   notificationsLoading: false,
 
-  // ----------------- FETCH STATS -----------------
+  // ----------------- STATS -----------------
   fetchAdminStats: async () => {
     set({ loading: true, error: null });
     try {
@@ -92,7 +89,7 @@ export const useAdminStore = create((set, get) => ({
       set({ stats: res.data.data || res.data, loading: false });
     } catch (err) {
       console.error("fetchAdminStats error:", err);
-      set({ error: "Failed to load admin stats", loading: false });
+      set({ error: extractError(err), loading: false });
     }
   },
 
@@ -113,7 +110,7 @@ export const useAdminStore = create((set, get) => ({
       });
     } catch (err) {
       console.error("fetchAllUsers error:", err);
-      set({ error: "Failed to load users", loading: false });
+      set({ error: extractError(err), loading: false });
     }
   },
 
@@ -126,7 +123,7 @@ export const useAdminStore = create((set, get) => ({
       return payload;
     } catch (err) {
       console.error("fetchUserById error:", err);
-      set({ error: "Failed to fetch user", userDetailLoading: false });
+      set({ error: extractError(err), userDetailLoading: false });
       return null;
     }
   },
@@ -142,7 +139,7 @@ export const useAdminStore = create((set, get) => ({
       return true;
     } catch (err) {
       console.error("deleteUser error:", err);
-      set({ error: "Failed to delete user", loading: false });
+      set({ error: extractError(err), loading: false });
       return false;
     }
   },
@@ -161,7 +158,7 @@ export const useAdminStore = create((set, get) => ({
       return updated;
     } catch (err) {
       console.error("updateUserRole error:", err);
-      set({ error: "Failed to update role", loading: false });
+      set({ error: extractError(err), loading: false });
       return null;
     }
   },
@@ -180,7 +177,7 @@ export const useAdminStore = create((set, get) => ({
       return updated;
     } catch (err) {
       console.error("toggleUserStatus error:", err);
-      set({ error: "Failed to toggle status", loading: false });
+      set({ error: extractError(err), loading: false });
       return null;
     }
   },
@@ -202,7 +199,7 @@ export const useAdminStore = create((set, get) => ({
       });
     } catch (err) {
       console.error("fetchPosts error:", err);
-      set({ error: "Failed to fetch posts", postsLoading: false });
+      set({ error: extractError(err), postsLoading: false });
     }
   },
 
@@ -220,7 +217,7 @@ export const useAdminStore = create((set, get) => ({
       return updated;
     } catch (err) {
       console.error("updatePostStatus error:", err);
-      set({ error: "Failed to update post status", postsLoading: false });
+      set({ error: extractError(err), postsLoading: false });
       return null;
     }
   },
@@ -237,7 +234,7 @@ export const useAdminStore = create((set, get) => ({
       });
     } catch (err) {
       console.error("fetchNotifications error:", err);
-      set({ error: "Failed to fetch notifications", notificationsLoading: false });
+      set({ error: extractError(err), notificationsLoading: false });
     }
   },
 
@@ -253,7 +250,7 @@ export const useAdminStore = create((set, get) => ({
       return newNote;
     } catch (err) {
       console.error("postNotification error:", err);
-      set({ error: "Failed to post notification", notificationsLoading: false });
+      set({ error: extractError(err), notificationsLoading: false });
       return null;
     }
   },

@@ -1,37 +1,30 @@
 // FILE: src/pages/admin/Notifications.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useAdminStore } from "../../store/store";
 
-/*
-  Notifications page
-  - Uses the admin store (fetchNotifications, postNotification)
-  - No external API helpers required.
-*/
-
 export default function Notifications() {
-  const {
-    notifications,
-    notificationsLoading,
-    fetchNotifications,
-    postNotification,
-  } = useAdminStore((s) => ({
-    notifications: s.notifications,
-    notificationsLoading: s.notificationsLoading,
-    fetchNotifications: s.fetchNotifications,
-    postNotification: s.postNotification,
-  }));
+  // ✅ Stable selectors from zustand
+  const notifications = useAdminStore((s) => s.notifications);
+  const notificationsLoading = useAdminStore((s) => s.notificationsLoading);
+  const fetchNotifications = useAdminStore((s) => s.fetchNotifications);
+  const postNotification = useAdminStore((s) => s.postNotification);
 
-  const [newMessage, setNewMessage] = React.useState("");
+  const [newMessage, setNewMessage] = useState("");
 
+  // ✅ Fetch notifications on mount
   useEffect(() => {
     fetchNotifications();
-  }, [fetchNotifications]);
+    // fetchNotifications is stable from zustand
+  }, []);
 
   const handlePostNotification = async () => {
     if (!newMessage.trim()) return;
     const created = await postNotification(newMessage.trim());
     if (created) setNewMessage("");
   };
+
+  // ✅ Memoize notifications list to avoid unnecessary recalculation
+  const displayedNotifications = useMemo(() => notifications || [], [notifications]);
 
   return (
     <div className="pt-16 p-6">
@@ -66,10 +59,10 @@ export default function Notifications() {
 
       {/* Notifications List */}
       <ul className="bg-white shadow rounded p-4">
-        {notifications?.length === 0 ? (
+        {displayedNotifications.length === 0 ? (
           <li className="text-gray-500">No notifications yet.</li>
         ) : (
-          notifications.map((note) => (
+          displayedNotifications.map((note) => (
             <li key={note._id || note.id} className="border-b last:border-b-0 py-2">
               <p className="font-medium">{note.message}</p>
               <span className="text-sm text-gray-500">
