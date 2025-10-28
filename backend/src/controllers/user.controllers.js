@@ -87,10 +87,21 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'No file uploaded');
   }
 
+  console.log('Uploading file to Cloudinary:', req.file.path);
+  
   const result = await uploadOnCloudinary(req.file.path);
-  if (!result || !result.secure_url) {
-    throw new ApiError(500, 'Cloudinary upload failed');
+  
+  if (!result) {
+    console.error('Cloudinary upload returned null');
+    throw new ApiError(500, 'Cloudinary upload failed - no response from Cloudinary');
   }
+  
+  if (!result.secure_url) {
+    console.error('Cloudinary upload missing secure_url:', result);
+    throw new ApiError(500, 'Cloudinary upload failed - no secure URL returned');
+  }
+
+  console.log('Cloudinary upload successful:', result.secure_url);
 
   const user = await User.findByIdAndUpdate(
     req.user._id,

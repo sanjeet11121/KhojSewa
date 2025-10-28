@@ -130,11 +130,11 @@ const startAutomatedServices = () => {
         console.log('🚀 Starting automated matching system...');
         AutomatedNotificationService.startMonitoring();
         MatchCronJob.start();
-        console.log('✅ Automatic matching system started!');
+        console.log(' Automatic matching system started!');
     } else {
-        console.log('ℹ️  Auto-matching disabled (set ENABLE_AUTO_MATCHING=true to enable)');
+        console.log('  Auto-matching disabled (set ENABLE_AUTO_MATCHING=true to enable)');
     }
 };
 
 // Call this after your server starts listening
-export { app, startAutomatedServices };
+export { app, server, startAutomatedServices };

@@ -1,13 +1,20 @@
 // components/Chat/ChatWindow.js
 import React, { useState, useRef, useEffect } from 'react';
-import { useChat } from '../../hooks/useChat';
 
-const ChatWindow = ({ chat, currentUser }) => {
+const ChatWindow = ({ 
+    chat, 
+    currentUser, 
+    messages = [], 
+    onSendMessage, 
+    onStartTyping, 
+    onStopTyping, 
+    onMarkAsRead, 
+    messagesEndRef, 
+    scrollToBottom 
+}) => {
     const [newMessage, setNewMessage] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [typingUser, setTypingUser] = useState('');
-    
-    const { messages, sendMessage, startTyping, stopTyping, messagesEndRef, scrollToBottom } = useChat();
     const messageContainerRef = useRef(null);
     const typingTimeoutRef = useRef(null);
 
@@ -15,23 +22,23 @@ const ChatWindow = ({ chat, currentUser }) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
 
-        sendMessage(newMessage, chat._id);
+        onSendMessage(newMessage, chat._id);
         setNewMessage('');
-        stopTyping(chat._id);
+        onStopTyping(chat._id);
     };
 
     const handleInputChange = (e) => {
         setNewMessage(e.target.value);
         
         // Typing indicators
-        startTyping(chat._id);
+        onStartTyping(chat._id);
         
         if (typingTimeoutRef.current) {
             clearTimeout(typingTimeoutRef.current);
         }
         
         typingTimeoutRef.current = setTimeout(() => {
-            stopTyping(chat._id);
+            onStopTyping(chat._id);
         }, 1000);
     };
 

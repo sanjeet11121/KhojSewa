@@ -78,18 +78,53 @@ export const getUserChats = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const { page = 1, limit = 20, archived = false } = req.query;
 
-    const chats = await Chat.find({
+    console.log('=== GET USER CHATS DEBUG ===');
+    console.log('User ID:', userId);
+    console.log('Archived param:', archived);
+
+    const isArchived = archived === true || archived === 'true';
+
+    const chatQuery = {
         participants: userId,
-        'settings.archived': archived === 'true',
         isActive: true
-    })
-    .populate('participants', 'fullName avatar email phoneNumber')
-    .populate('lastMessage')
-    .populate('claim', 'status description')
-    .populate('post', 'title images')
-    .sort({ updatedAt: -1 })
-    .limit(limit * 1)
-    .skip((page - 1) * limit);
+    };
+
+    if (isArchived) {
+        chatQuery['settings.archived'] = true;
+    } else {
+        chatQuery.$or = [
+            { 'settings.archived': { $exists: false } },
+            { 'settings.archived': false }
+        ];
+    }
+
+    console.log('Chat query:', JSON.stringify(chatQuery, null, 2));
+
+    // Debug: Check all chats in database
+    const allChats = await Chat.find({ isActive: true });
+    console.log('Total active chats in DB:', allChats.length);
+    if (allChats.length > 0) {
+        console.log('Sample chat participants:', allChats[0].participants);
+        console.log('User ID to match:', userId);
+        console.log('User ID type:', typeof userId, userId.constructor.name);
+    }
+
+    console.log('Executing query...');
+    const chats = await Chat.find(chatQuery)
+        .populate('participants', 'fullName avatar email phoneNumber')
+        .populate('lastMessage')
+        .populate('claim', 'status description')
+        .populate('post', 'title images')
+        .sort({ updatedAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+    console.log('Found chats count:', chats.length);
+    if (chats.length > 0) {
+        console.log('First chat:', JSON.stringify(chats[0], null, 2));
+    } else {
+        console.log('No chats found with query');
+    }
 
     // Calculate unread counts for each chat
     const chatsWithUnread = await Promise.all(

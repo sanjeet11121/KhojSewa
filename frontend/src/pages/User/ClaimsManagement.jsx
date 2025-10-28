@@ -36,6 +36,16 @@ const ClaimsManagement = () => {
   const [newMessage, setNewMessage] = useState('');
 
   useEffect(() => {
+    if (selectedClaim) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [selectedClaim]);
+
+  useEffect(() => {
     fetchClaimsAndPost();
   }, [postId, postType]);
 
@@ -66,8 +76,11 @@ const ClaimsManagement = () => {
   };
 
   // Fixed update claim status function
-  const handleUpdateClaimStatus = async (claimId, status) => {
-    if (status === 'rejected' && !statusUpdateNotes.trim()) {
+  const handleUpdateClaimStatus = async (claimId, status, notes = statusUpdateNotes) => {
+    console.log('Attempting to update claim:', claimId, 'to status:', status);
+    console.log('Current statusUpdateNotes:', notes);
+    
+    if (status === 'rejected' && !notes.trim()) {
       alert('Please provide a reason for rejection');
       return;
     }
@@ -76,14 +89,14 @@ const ClaimsManagement = () => {
     try {
       console.log('Updating claim status:', claimId, status);
       
-      const result = await claimApi.updateClaimStatus(claimId, status, statusUpdateNotes);
+      const result = await claimApi.updateClaimStatus(claimId, status, notes);
       
       console.log('Update status result:', result);
 
       if (result.success) {
         // Update local state
         setClaims(prev => prev.map(claim => 
-          claim._id === claimId ? result.data : claim
+          claim._id === claimId ? { ...claim, status: status } : claim
         ));
         
         setStatusUpdateNotes('');
@@ -93,6 +106,7 @@ const ClaimsManagement = () => {
         // Refresh claims to get updated data
         fetchClaimsAndPost();
       } else {
+        console.error('Update failed:', result.error);
         alert(result.error || 'Failed to update claim status');
       }
     } catch (err) {
@@ -103,27 +117,20 @@ const ClaimsManagement = () => {
     }
   };
 
-  // Add message to claim
-  const handleSendMessage = async (claimId) => {
-    if (!newMessage.trim()) {
+  // Send message to claimant
+  const handleSendMessage = async (claimId, message = newMessage) => {
+    if (!message.trim()) {
       alert('Please enter a message');
       return;
     }
 
     try {
-      const result = await claimApi.sendMessage(claimId, newMessage.trim());
+      const result = await claimApi.sendMessage(claimId, message.trim());
       
       if (result.success) {
         setNewMessage('');
-        // Refresh claims to get updated messages
-        fetchClaimsAndPost();
-        if (selectedClaim && selectedClaim._id === claimId) {
-          setSelectedClaim(prev => ({
-            ...prev,
-            messages: [...prev.messages, result.data]
-          }));
-        }
         alert('Message sent successfully!');
+        // Don't close modal or redirect - user can continue reviewing the claim
       } else {
         alert(result.error || 'Failed to send message');
       }
@@ -227,13 +234,34 @@ const ClaimsManagement = () => {
   // Claim Detail Modal Component - IMPROVED VERSION
   const ClaimDetailModal = ({ claim, onClose }) => {
     const confidence = getMLConfidence(claim);
+    const [actionError, setActionError] = useState('');
+    const [localNotes, setLocalNotes] = useState(statusUpdateNotes);
+    const [localMessage, setLocalMessage] = useState(newMessage);
+
+    useEffect(() => {
+      // Sync local state when opening or switching claim
+      setLocalNotes('');
+      setLocalMessage('');
+      setActionError('');
+    }, [claim?._id]);
+
+    useEffect(() => {
+      // Clear any action errors when notes change
+      setActionError('');
+    }, [localNotes]);
     
     return (
-      <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div
+        className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm p-4 z-50 overflow-y-auto flex items-center justify-center"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="p-6">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="sticky top-0 bg-white z-10 flex items-center justify-between mb-6 py-2 border-b">
               <h3 className="text-2xl font-bold text-gray-900">Claim Details</h3>
               <button
                 onClick={onClose}
@@ -406,70 +434,56 @@ const ClaimsManagement = () => {
               </div>
             </div>
 
-            {/* Messages Section */}
+            {/* Quick Message Section */}
             <div className="mb-6">
-              <h4 className="font-semibold text-gray-800 mb-3">Messages</h4>
-              <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
-                {claim.messages?.map((msg, index) => (
-                  <div key={index} className={`p-3 rounded-lg ${
-                    msg.sender._id === localStorage.getItem('userId') 
-                      ? 'bg-blue-50 ml-8' 
-                      : 'bg-gray-50 mr-8'
-                  }`}>
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-medium text-sm text-gray-700">
-                        {msg.sender?.fullName}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(msg.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-gray-700">{msg.message}</p>
-                  </div>
-                ))}
-                {(!claim.messages || claim.messages.length === 0) && (
-                  <p className="text-gray-500 text-center py-4">No messages yet</p>
-                )}
-              </div>
-
-              {/* Send Message */}
+              <h4 className="font-semibold text-gray-800 mb-3">Quick Message</h4>
+              <p className="text-gray-600 text-sm mb-3">
+                Send a message to the claimant. View full conversation in the Messages page.
+              </p>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
+                  value={localMessage}
+                  onChange={(e) => {
+                    setLocalMessage(e.target.value);
+                  }}
+                  placeholder="Type a message..."
                   className="flex-1 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
-                      handleSendMessage(claim._id);
+                      handleSendMessage(claim._id, localMessage);
                     }
                   }}
                 />
                 <button
-                  onClick={() => handleSendMessage(claim._id)}
-                  disabled={!newMessage.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium disabled:opacity-50"
+                  onClick={() => handleSendMessage(claim._id, localMessage)}
+                  disabled={!localMessage.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Send
+                  Send Message
                 </button>
               </div>
             </div>
 
             {/* Action Section */}
-            {claim.status === 'pending' && (
+            {['pending', 'under_review'].includes(claim.status) && (
               <div className="border-t pt-6">
                 <h4 className="font-semibold text-gray-800 mb-3">Update Claim Status</h4>
                 <textarea
-                  value={statusUpdateNotes}
-                  onChange={(e) => setStatusUpdateNotes(e.target.value)}
+                  value={localNotes}
+                  onChange={(e) => setLocalNotes(e.target.value)}
                   placeholder="Add notes about your decision (required for rejection)..."
-                  className="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full border border-gray-300 rounded-lg p-3 mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   rows="3"
                 />
+                {actionError && (
+                  <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                    {actionError}
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
-                    onClick={() => handleUpdateClaimStatus(claim._id, 'approved')}
+                    onClick={() => handleUpdateClaimStatus(claim._id, 'approved', localNotes)}
                     disabled={updatingClaim === claim._id}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
@@ -484,9 +498,16 @@ const ClaimsManagement = () => {
                   </button>
                   
                   <button
-                    onClick={() => handleUpdateClaimStatus(claim._id, 'rejected')}
-                    disabled={updatingClaim === claim._id || !statusUpdateNotes.trim()}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    onClick={() => {
+                      if (!localNotes.trim()) {
+                        setActionError('Description is required to reject a claim.');
+                        return;
+                      }
+                      handleUpdateClaimStatus(claim._id, 'rejected', localNotes);
+                    }}
+                    disabled={updatingClaim === claim._id}
+                    className={`flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${!localNotes.trim() ? 'opacity-50' : ''}`}
+                    aria-disabled={!localNotes.trim()}
                   >
                     {updatingClaim === claim._id ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -499,7 +520,7 @@ const ClaimsManagement = () => {
                   </button>
 
                   <button
-                    onClick={() => handleUpdateClaimStatus(claim._id, 'under_review')}
+                    onClick={() => handleUpdateClaimStatus(claim._id, 'under_review', localNotes)}
                     disabled={updatingClaim === claim._id}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >

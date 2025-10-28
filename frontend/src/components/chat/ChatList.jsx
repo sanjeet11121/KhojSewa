@@ -1,7 +1,7 @@
 // components/Chat/ChatList.js
 import React from 'react';
 
-const ChatList = ({ chats, activeChat, onSelectChat, loading }) => {
+const ChatList = ({ chats, activeChat, onSelectChat, loading, currentUser }) => {
     if (loading) {
         return <div className="p-4">Loading chats...</div>;
     }
@@ -25,14 +25,14 @@ const ChatList = ({ chats, activeChat, onSelectChat, loading }) => {
                             <div className="flex-shrink-0">
                                 <img
                                     className="h-10 w-10 rounded-full"
-                                    src={chat.participants.find(p => p._id !== user._id)?.avatar || '/default-avatar.png'}
+                                    src={chat.participants.find(p => p._id !== currentUser?._id)?.avatar || '/default-avatar.png'}
                                     alt="Avatar"
                                 />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-medium text-gray-900 truncate">
-                                        {chat.chatName || chat.participants.find(p => p._id !== user._id)?.fullName}
+                                        {chat.chatName || chat.participants.find(p => p._id !== currentUser?._id)?.fullName}
                                     </p>
                                     {chat.unreadCount > 0 && (
                                         <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">

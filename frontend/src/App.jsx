@@ -1,4 +1,5 @@
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { useState, useEffect } from "react";
 import AdminLayout from "./admin/AdminLayout";
 import Dashboard from "./admin/pages/Dashboard";
 import Posts from "./admin/pages/Posts.jsx";
@@ -24,8 +25,24 @@ import FoundPostDetail from "./pages/User/FoundPostDetail.jsx";
 import ClaimsManagement from "./pages/User/ClaimsManagement.jsx";
 import ClaimsDashboard from "./components/claim/ClaimsDashboard.jsx";
 import ClaimDetail from "./components/claim/ClaimDetail.jsx";
+import ChatPage from './pages/User/chatPages/ChatPage';
+
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    // Get user from localStorage
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        setCurrentUser(JSON.parse(userStr));
+      }
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error);
+    }
+  }, []);
+
   return (
     <Router>
   <Routes>
@@ -40,6 +57,8 @@ function App() {
         <Route path="/user/UserInterface" element={<UserInterface />} />
         <Route path="/user" element={<UserPortal />} />
         <Route path="/user/dashboard" element={<UserDashboard />} />
+        <Route path="/user/messages" element={<ChatPage user={currentUser} />} />
+
 
         {/* Admin Pages */}
         <Route path="/admin" element={<AdminLayout />}>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import MyPosts from './MyPosts';
 import Messages from './Messages';
@@ -9,13 +10,26 @@ import UserAvatar from '../../components/UserAvatar';
 import { useNavigate } from 'react-router-dom';
 
 const UserDashboard = () => {
-  const [activeSection, setActiveSection] = useState('myPosts');
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  
+  // Get initial tab from URL parameter
+  const initialTab = searchParams.get('tab') || 'myPosts';
+  const [activeSection, setActiveSection] = useState(initialTab);
   const tabs = [
     { key: 'myPosts', label: 'My Posts' },
     { key: 'messages', label: 'Messages' },
     { key: 'myDetails', label: 'My Details' }
   ];
+  
+  // Handle URL parameter changes
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['myPosts', 'messages', 'myDetails'].includes(tab)) {
+      setActiveSection(tab);
+    }
+  }, [searchParams]);
+  
   // Get user object for avatar
   const rawUser = localStorage.getItem('user');
   let user = null;
@@ -67,7 +81,7 @@ const UserDashboard = () => {
             </div>
             <div className="mt-8">
               {activeSection === 'myPosts' && <MyPosts />}
-              {activeSection === 'messages' && <Messages />}
+              {activeSection === 'messages' && <Messages user={user} />}
               {activeSection === 'myDetails' && <MyDetail />}
             </div>
           </div>

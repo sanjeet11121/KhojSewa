@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../config.js';
 import LocationSelector from '../components/LocationSelector';
 
 const LostItemPage = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     itemName: '',
     category: 'Electronics',
@@ -113,8 +114,8 @@ const handleSubmit = async (e) => {
     const formDataToSend = new FormData();
     formDataToSend.append('title', formData.itemName);
     formDataToSend.append('description', formData.description);
-    formDataToSend.append('locationFound', formData.location);
-    formDataToSend.append('foundDate', formData.date);
+    formDataToSend.append('locationLost', formData.location);
+    formDataToSend.append('lostDate', formData.date);
     formDataToSend.append('category', formData.category);
     
     // FIX: Ensure location data is properly formatted
@@ -147,7 +148,7 @@ const handleSubmit = async (e) => {
     console.log('📤 Sending request to server...');
     
     const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-    const response = await fetch(`${api}/api/v1/posts/found`, {
+    const response = await fetch(`${api}/api/v1/posts/lost`, {
       method: 'POST',
       headers: { 
         'Authorization': authToken,
@@ -173,7 +174,7 @@ const handleSubmit = async (e) => {
     }
 
     // Success case
-    setSuccess('Found item posted successfully! Redirecting...');
+    setSuccess('Lost item posted successfully! Redirecting...');
     
     // Reset form
     setFormData({
@@ -193,7 +194,7 @@ const handleSubmit = async (e) => {
 
   } catch (err) {
     console.error('❌ Submission error:', err);
-    setError(err.message || 'Failed to post found item. Please try again.');
+    setError(err.message || 'Failed to post lost item. Please try again.');
   } finally {
     setLoading(false);
   }
