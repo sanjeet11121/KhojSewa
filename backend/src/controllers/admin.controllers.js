@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 // import { FoundPost } from "../models/foundPost.model.js";
+// import { LostPost } from "../models/lostPost.model.js";
 
 // 1. Get all users (with pagination)
 export const getAllUsers = asyncHandler(async (req, res) => {
@@ -97,97 +98,149 @@ export const getUserStats = asyncHandler(async (req, res) => {
     }, "User statistics fetched"));
 });
 
+// 7. Check if user is online
+export const isUserOnline = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
 
+    const user = await User.findById(userId).select('fullName email lastActive isActive');
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    // Check if user was active in the last 5 minutes
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const isOnline = user.lastActive && user.lastActive > fiveMinutesAgo;
+
+    return res.status(200).json(new ApiResponse(200, {
+        userId: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        isOnline,
+        lastActive: user.lastActive,
+        isActive: user.isActive
+    }, "User online status checked successfully"));
+});
+
+// 8. Get all online users
+export const getOnlineUsers = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+    
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    const onlineUsers = await User.find({
+        lastActive: { $gte: fiveMinutesAgo },
+        isActive: true
+    })
+    .select('fullName email lastActive avatar role')
+    .sort({ lastActive: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+    const totalOnlineUsers = await User.countDocuments({
+        lastActive: { $gte: fiveMinutesAgo },
+        isActive: true
+    });
+
+    return res.status(200).json(new ApiResponse(200, {
+        onlineUsers,
+        totalOnlineUsers,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalOnlineUsers / limit)
+    }, "Online users fetched successfully"));
+});
+
+// 9. Get user activity analytics
+export const getUserActivityAnalytics = asyncHandler(async (req, res) => {
+    const now = new Date();
+    const fiveMinutesAgo = new Date(now - 5 * 60 * 1000);
+    const oneHourAgo = new Date(now - 60 * 60 * 1000);
+    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+        onlineNow,
+        activeLastHour,
+        activeToday,
+        activeThisWeek,
+        totalUsers
+    ] = await Promise.all([
+        User.countDocuments({ 
+            lastActive: { $gte: fiveMinutesAgo },
+            isActive: true 
+        }),
+        User.countDocuments({ 
+            lastActive: { $gte: oneHourAgo },
+            isActive: true 
+        }),
+        User.countDocuments({ 
+            lastActive: { $gte: oneDayAgo },
+            isActive: true 
+        }),
+        User.countDocuments({ 
+            lastActive: { $gte: oneWeekAgo },
+            isActive: true 
+        }),
+        User.countDocuments({ isActive: true })
+    ]);
+
+    return res.status(200).json(new ApiResponse(200, {
+        activityStats: {
+            onlineNow,
+            activeLastHour,
+            activeToday,
+            activeThisWeek,
+            totalActiveUsers: totalUsers
+        },
+        percentages: {
+            onlineRate: totalUsers > 0 ? ((onlineNow / totalUsers) * 100).toFixed(1) : 0,
+            dailyActiveRate: totalUsers > 0 ? ((activeToday / totalUsers) * 100).toFixed(1) : 0,
+            weeklyActiveRate: totalUsers > 0 ? ((activeThisWeek / totalUsers) * 100).toFixed(1) : 0
+        }
+    }, "User activity analytics fetched successfully"));
+});
 
 // Admin Dashboard Stats
-export const getAdminStats = async (req, res) => {
-  try {
+export const getAdminStats = asyncHandler(async (req, res) => {
     const totalUsers = await User.countDocuments();
 
-    // Fallback: users active in last 30 days
+    // Users active in last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const activeUsers = await User.countDocuments({ updatedAt: { $gte: thirtyDaysAgo } });
+    const activeUsers = await User.countDocuments({ 
+        lastActive: { $gte: thirtyDaysAgo },
+        isActive: true 
+    });
 
-    const totalInquiries = await Inquiry.countDocuments();
+    // Users online now (last 5 minutes)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const onlineNow = await User.countDocuments({
+        lastActive: { $gte: fiveMinutesAgo },
+        isActive: true
+    });
 
-    const totalLostPosts = await Post.countDocuments({ type: 'lost' });
-    const totalFoundPosts = await Post.countDocuments({ type: 'found' });
+    // You'll need to import these models if you want to use them
+    // const totalInquiries = await Inquiry.countDocuments();
+    // const totalLostPosts = await Post.countDocuments({ type: 'lost' });
+    // const totalFoundPosts = await Post.countDocuments({ type: 'found' });
+
+    // For now, using placeholder values
+    const totalInquiries = 0; // Replace with actual count when you have the model
+    const totalLostPosts = 0; // Replace with actual count
+    const totalFoundPosts = 0; // Replace with actual count
 
     const lostFoundRatio = totalLostPosts + totalFoundPosts === 0
-      ? 0
-      : (totalFoundPosts / (totalLostPosts + totalFoundPosts)).toFixed(2);
+        ? 0
+        : (totalFoundPosts / (totalLostPosts + totalFoundPosts)).toFixed(2);
 
-    return res.status(200).json({
-      success: true,
-      message: "Stats retrieved successfully",
-      data: {
+    return res.status(200).json(new ApiResponse(200, {
         totalUsers,
         activeUsers,
+        onlineNow,
         totalInquiries,
         totalLostPosts,
         totalFoundPosts,
         lostFoundRatio
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch stats",
-      error: error.message
-    });
-  }
-};
-
-
-// //=====================Posts haru fetch garne methodsss================
-// export const getPostStatsByUser = asyncHandler(async (req, res) => {
-//     const stats = await Post.aggregate([
-//         {
-//             $group: {
-//                 _id: {
-//                     user: "$user",
-//                     type: "$type",
-//                     status: "$status"
-//                 },
-//                 count: { $sum: 1 }
-//             }
-//         },
-//         {
-//             $group: {
-//                 _id: "$_id.user",
-//                 posts: {
-//                     $push: {
-//                         type: "$_id.type",
-//                         status: "$_id.status",
-//                         count: "$count"
-//                     }
-//                 }
-//             }
-//         },
-//         {
-//             $lookup: {
-//                 from: "users", // match the collection name
-//                 localField: "_id",
-//                 foreignField: "_id",
-//                 as: "user"
-//             }
-//         },
-//         {
-//             $unwind: "$user"
-//         },
-//         {
-//             $project: {
-//                 userId: "$user._id",
-//                 fullName: "$user.fullName",
-//                 email: "$user.email",
-//                 postStats: "$posts"
-//             }
-//         }
-//     ]);
-
-//     return res.status(200).json(
-//         new ApiResponse(200, stats, "Post stats fetched successfully")
-//     );
-// });
+    }, "Admin dashboard stats retrieved successfully"));
+});
 

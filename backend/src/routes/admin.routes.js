@@ -7,22 +7,32 @@ import {
     toggleUserStatus,
     getUserStats,
     getAdminStats,
-    // getPostStatsByUser
+    isUserOnline,
+    getOnlineUsers,
+    getUserActivityAnalytics
 } from '../controllers/admin.controllers.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
+import { authenticate, requireAdmin } from '../middlewares/auth.middleware.js';
+import { updateLastActive } from '../middlewares/updateLastActive.middleware.js';
 
 const adminRouter = express.Router();
 
-// all routes below require admin authentication
-adminRouter.use(authenticate);
+// All routes below require authentication and admin role
+adminRouter.use(authenticate, requireAdmin, updateLastActive);
 
-// Example: add a middleware to check for admin role here (optional)
-
+// ===== USER MANAGEMENT ROUTES =====
 adminRouter.get("/users", getAllUsers);
-adminRouter.get("/stats", getUserStats);
-adminRouter.patch("/user/:userId/role", updateUserRole);
-adminRouter.patch("/user/:userId/verify", manuallyVerifyUser);
-adminRouter.patch("/user/:userId/status", toggleUserStatus);
-adminRouter.delete("/user/:userId", deleteUserById);
-adminRouter.get('/stats', authenticate, getAdminStats);
+adminRouter.patch("/users/:userId/role", updateUserRole);
+adminRouter.patch("/users/:userId/verify", manuallyVerifyUser);
+adminRouter.patch("/users/:userId/status", toggleUserStatus);
+adminRouter.delete("/users/:userId", deleteUserById);
+
+// ===== USER ANALYTICS ROUTES =====
+adminRouter.get("/users/:userId/online-status", isUserOnline);
+adminRouter.get("/users/online/current", getOnlineUsers); // More specific
+
+// ===== DASHBOARD & STATISTICS ROUTES =====
+adminRouter.get("/stats/overview", getAdminStats); // Main dashboard
+adminRouter.get("/stats/users", getUserStats); // User-specific stats
+adminRouter.get("/stats/activity", getUserActivityAnalytics); // Activity analytics
+
 export default adminRouter;

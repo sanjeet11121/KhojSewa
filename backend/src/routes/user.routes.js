@@ -17,6 +17,7 @@ import {
 
 import { authenticate } from '../middlewares/auth.middleware.js';
 import upload from '../middlewares/multer.middleware.js';
+import { getUserPostingActivity, getUserPostStats } from '../controllers/post.controllers.js';
 
 const userRouter = express.Router();
 
@@ -35,6 +36,12 @@ userRouter.get('/user-found-posts', authenticate, getUserFoundPosts);
 userRouter.put('/user-found-update-posts', authenticate, updateUserFoundPosts);
 userRouter.delete('/user-found-posts', authenticate, deleteUserFoundPosts);
 userRouter.delete('/delete-account', authenticate, deleteAccount);
+//post stats 
+userRouter.get('/user-posting-activity', authenticate, getUserPostingActivity);
+userRouter.get('/user-post-stats', authenticate, getUserPostStats);
+
+
+
 
 
 export default userRouter;
