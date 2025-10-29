@@ -10,10 +10,20 @@ class SocketService {
     }
 
     initialize(server) {
+        const configuredOrigins = process.env.FRONTEND_URL
+            ? process.env.FRONTEND_URL.split(',').map(origin => origin.trim()).filter(Boolean)
+            : [];
+
+        const defaultOrigins = [
+            "http://localhost:3000",
+            "http://localhost:5173"
+        ];
+
         this.io = new Server(server, {
             cors: {
-                origin: process.env.FRONTEND_URL || "http://localhost:3000",
-                methods: ["GET", "POST"]
+                origin: configuredOrigins.length > 0 ? configuredOrigins : defaultOrigins,
+                methods: ["GET", "POST"],
+                credentials: true
             }
         });
 
@@ -23,22 +33,38 @@ class SocketService {
 
     async authenticateSocket(socket, next) {
         try {
-            const token = socket.handshake.auth.token;
+            console.log('🔐 Socket authentication attempt...');
+            console.log('Handshake auth:', socket.handshake.auth);
+            
+            let token = socket.handshake.auth.token;
             if (!token) {
+                console.log('❌ No token provided in socket auth');
                 return next(new Error('Authentication error'));
             }
 
+            // Remove 'Bearer ' prefix if present
+            if (token.startsWith('Bearer ')) {
+                token = token.substring(7);
+                console.log('Removed Bearer prefix from token');
+            }
+
+            console.log('Token received:', token.substring(0, 20) + '...');
             const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+            console.log('✅ Token decoded:', decoded);
+            
             const user = await User.findById(decoded._id).select('-password');
             
             if (!user) {
+                console.log('❌ User not found:', decoded._id);
                 return next(new Error('User not found'));
             }
 
             socket.userId = user._id.toString();
             socket.user = user;
+            console.log('✅ Socket authenticated for user:', user.fullName);
             next();
         } catch (error) {
+            console.error('❌ Socket authentication error:', error.message);
             next(new Error('Authentication error'));
         }
     }
@@ -66,14 +92,18 @@ class SocketService {
 
             socket.on('send_message', async (data) => {
                 try {
+                    console.log('📨 Received send_message event:', data);
                     const message = await this.handleSendMessage(socket.userId, data);
+                    console.log('✅ Message saved:', message);
                     
                     // Emit to all participants in the chat
                     this.io.to(data.chatId).emit('new_message', message);
+                    console.log('✅ Emitted new_message to chat:', data.chatId);
                     
                     // Notify other participants who are not in the chat
                     this.notifyParticipants(socket.userId, data.chatId, message);
                 } catch (error) {
+                    console.error('❌ Error handling send_message:', error);
                     socket.emit('message_error', { error: error.message });
                 }
             });
@@ -107,12 +137,16 @@ class SocketService {
     async handleSendMessage(userId, data) {
         const { chatId, content, messageType = 'text', fileUrl, fileName, fileSize } = data;
 
+        console.log('🔍 Looking for chat:', chatId);
         const chat = await Chat.findById(chatId);
         if (!chat) {
+            console.error('❌ Chat not found:', chatId);
             throw new Error('Chat not found');
         }
+        console.log('✅ Chat found:', chat._id);
 
         if (!chat.participants.includes(userId)) {
+            console.error('❌ User not authorized:', userId);
             throw new Error('Not authorized to send message in this chat');
         }
 
@@ -130,8 +164,10 @@ class SocketService {
         };
 
         chat.messages.push(newMessage);
-        chat.lastMessage = chat.messages[chat.messages.length - 1]._id;
+        // Set lastMessage to the full message object, not just the ID
+        chat.lastMessage = newMessage;
         await chat.save();
+        console.log('✅ Message saved to database');
 
         // Populate the message for response
         await chat.populate('messages.sender', 'fullName avatar');

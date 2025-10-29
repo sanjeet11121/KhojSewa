@@ -30,24 +30,42 @@ const ChatList = ({ chats, activeChat, onSelectChat, loading, currentUser }) => 
                                 />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium text-gray-900 truncate">
-                                        {chat.chatName || chat.participants.find(p => p._id !== currentUser?._id)?.fullName}
+                                <div className="flex items-center justify-between mb-1">
+                                    <p className="text-base font-bold text-gray-900 truncate">
+                                        {chat.participants.find(p => p._id !== currentUser?._id)?.fullName || 'Unknown User'}
                                     </p>
                                     {chat.unreadCount > 0 && (
-                                        <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-                                            {chat.unreadCount}
+                                        <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold leading-none text-white bg-blue-600 rounded-full ml-2">
+                                            {chat.unreadCount > 4 ? '4+' : chat.unreadCount}
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-sm text-gray-500 truncate">
-                                    {chat.lastMessage?.content || 'No messages yet'}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                    {chat.lastMessage ? 
-                                        new Date(chat.lastMessage.createdAt).toLocaleTimeString() : 
-                                        new Date(chat.updatedAt).toLocaleDateString()
-                                    }
+                                <p className="text-xs text-gray-500">
+                                    {(() => {
+                                        if (chat.lastMessage?.createdAt) {
+                                            const date = new Date(chat.lastMessage.createdAt);
+                                            if (!isNaN(date.getTime())) {
+                                                const now = new Date();
+                                                const diffMs = now - date;
+                                                const diffMins = Math.floor(diffMs / 60000);
+                                                const diffHours = Math.floor(diffMs / 3600000);
+                                                const diffDays = Math.floor(diffMs / 86400000);
+                                                
+                                                if (diffMins < 1) return 'Just now';
+                                                if (diffMins < 60) return `${diffMins}m ago`;
+                                                if (diffHours < 24) return `${diffHours}h ago`;
+                                                if (diffDays < 7) return `${diffDays}d ago`;
+                                                return date.toLocaleDateString();
+                                            }
+                                        }
+                                        if (chat.updatedAt) {
+                                            const date = new Date(chat.updatedAt);
+                                            if (!isNaN(date.getTime())) {
+                                                return date.toLocaleDateString();
+                                            }
+                                        }
+                                        return '';
+                                    })()}
                                 </p>
                             </div>
                         </div>

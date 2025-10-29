@@ -73,10 +73,7 @@ const chatSchema = new mongoose.Schema({
         trim: true
     },
     chatImage: String,
-    lastMessage: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Message'
-    },
+    lastMessage: messageSchema,
     isActive: {
         type: Boolean,
         default: true

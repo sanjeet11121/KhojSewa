@@ -264,7 +264,8 @@ export const addMessage = asyncHandler(async (req, res) => {
   };
 
   chat.messages.push(chatMessage);
-  chat.lastMessage = chat.messages[chat.messages.length - 1]._id;
+  // Set lastMessage to the actual message object (subdocument)
+  chat.lastMessage = chat.messages[chat.messages.length - 1];
   await chat.save();
   
   console.log('Chat saved with', chat.messages.length, 'messages');

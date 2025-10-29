@@ -1,5 +1,6 @@
 // components/Chat/ChatWindow.js
 import React, { useState, useRef, useEffect } from 'react';
+import { useSocket } from '../../context/SocketContext';
 
 const ChatWindow = ({ 
     chat, 
@@ -17,6 +18,7 @@ const ChatWindow = ({
     const [typingUser, setTypingUser] = useState('');
     const messageContainerRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+    const { isConnected } = useSocket();
 
     const handleSendMessage = (e) => {
         e.preventDefault();
@@ -70,19 +72,27 @@ const ChatWindow = ({
         <div className="flex-1 flex flex-col bg-white">
             {/* Chat Header */}
             <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center space-x-3">
-                    <img
-                        className="h-10 w-10 rounded-full"
-                        src={otherUser?.avatar || '/default-avatar.png'}
-                        alt={otherUser?.fullName}
-                    />
-                    <div>
-                        <h3 className="text-lg font-medium text-gray-900">
-                            {otherUser?.fullName}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                            {isTyping ? `${typingUser} is typing...` : 'Online'}
-                        </p>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                        <img
+                            className="h-10 w-10 rounded-full"
+                            src={otherUser?.avatar || '/default-avatar.png'}
+                            alt={otherUser?.fullName}
+                        />
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900">
+                                {otherUser?.fullName}
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                                {isTyping ? `${typingUser} is typing...` : 'Online'}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className="text-xs text-gray-500">
+                            {isConnected ? 'Connected' : 'Disconnected'}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -92,39 +102,54 @@ const ChatWindow = ({
                 ref={messageContainerRef}
                 className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
             >
-                {messages.map((message) => (
-                    <div
-                        key={message._id}
-                        className={`flex ${
-                            message.sender._id === currentUser._id ? 'justify-end' : 'justify-start'
-                        }`}
-                    >
+                {messages.length === 0 && (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                        <p>No messages yet. Start the conversation!</p>
+                    </div>
+                )}
+                {messages.map((message) => {
+                    // Handle sender being either an object or a string ID
+                    const senderId = typeof message.sender === 'object' 
+                        ? message.sender._id 
+                        : message.sender;
+                    const isCurrentUser = senderId === currentUser._id;
+                    
+                    console.log('Rendering message:', { id: message._id, senderId, currentUserId: currentUser._id, isCurrentUser });
+                    
+                    return (
                         <div
-                            className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                                message.sender._id === currentUser._id
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white text-gray-900 border border-gray-200'
+                            key={message._id}
+                            className={`flex ${
+                                isCurrentUser ? 'justify-end' : 'justify-start'
                             }`}
                         >
-                            {message.messageType === 'image' ? (
-                                <img
-                                    src={message.fileUrl}
-                                    alt="Shared image"
-                                    className="max-w-full rounded"
-                                />
-                            ) : (
-                                <p className="text-sm">{message.content}</p>
-                            )}
-                            <p className={`text-xs mt-1 ${
-                                message.sender._id === currentUser._id 
-                                    ? 'text-blue-100' 
-                                    : 'text-gray-500'
-                            }`}>
-                                {formatTime(message.createdAt)}
-                            </p>
+                            <div
+                                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                    isCurrentUser
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-white text-gray-900 border border-gray-200'
+                                }`}
+                            >
+                                {message.messageType === 'image' ? (
+                                    <img
+                                        src={message.fileUrl}
+                                        alt="Shared image"
+                                        className="max-w-full rounded"
+                                    />
+                                ) : (
+                                    <p className="text-sm">{message.content}</p>
+                                )}
+                                <p className={`text-xs mt-1 ${
+                                    isCurrentUser 
+                                        ? 'text-blue-100' 
+                                        : 'text-gray-500'
+                                }`}>
+                                    {formatTime(message.createdAt)}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
                 <div ref={messagesEndRef} />
             </div>
 

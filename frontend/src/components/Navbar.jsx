@@ -20,11 +20,54 @@ function Navbar() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [user, setUser] = useState(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const navigate = useNavigate();
   const toggleMenu = () => setOpen(!open);
   const toggleAccountMenu = () => setAccountOpen(!accountOpen);
-  const isSignedIn = !!localStorage.getItem('accessToken');
-  const user = isSignedIn ? safeParseUser() : null;
+
+  // Initialize user state
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    setIsSignedIn(!!token);
+    if (token) {
+      setUser(safeParseUser());
+    }
+  }, []);
+
+  // Listen for localStorage changes (for avatar updates)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' || e.key === null) {
+        const token = localStorage.getItem('accessToken');
+        setIsSignedIn(!!token);
+        if (token) {
+          setUser(safeParseUser());
+        } else {
+          setUser(null);
+        }
+      }
+    };
+
+    // Listen to storage events from other tabs/windows
+    window.addEventListener('storage', handleStorageChange);
+
+    // Custom event for same-tab updates
+    const handleCustomUserUpdate = () => {
+      const token = localStorage.getItem('accessToken');
+      setIsSignedIn(!!token);
+      if (token) {
+        setUser(safeParseUser());
+      }
+    };
+
+    window.addEventListener('userUpdated', handleCustomUserUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('userUpdated', handleCustomUserUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -42,7 +85,10 @@ function Navbar() {
   const handleSignOut = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
-    navigate('/');
+    setIsSignedIn(false);
+    setUser(null);
+    // Force page reload to clear all state
+    window.location.href = '/';
   };
 
   let avatarUrl = null;

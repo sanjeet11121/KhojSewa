@@ -59,12 +59,41 @@ const Recommendations = () => {
       try {
         const result = await claimApi.getUserClaims();
         console.log('🔍 User claims result:', result);
+        console.log('🔍 Full result structure:', JSON.stringify(result, null, 2));
         
         if (result.success && result.data) {
+          // Backend returns { data: { claims: [...], pagination: {...} } }
+          const claimsArray = result.data.claims || result.data;
+          console.log('📊 Claims array:', claimsArray);
+          
+          if (!Array.isArray(claimsArray)) {
+            console.error('Claims is not an array:', claimsArray);
+            return;
+          }
+          
+          // Handle different possible data structures for claim.post
           const claimedPostIds = new Set(
-            result.data
-              .filter(claim => claim.status === 'pending' || claim.status === 'approved')
-              .map(claim => claim.post.toString())
+            claimsArray
+              .filter(claim => {
+                // Include pending, approved, and any active claims
+                const isActiveClaim = claim.status === 'pending' || 
+                                     claim.status === 'approved' || 
+                                     claim.status === 'active';
+                console.log(`Claim ${claim._id}: status=${claim.status}, isActive=${isActiveClaim}`);
+                return isActiveClaim;
+              })
+              .map(claim => {
+                // Handle both object and string formats for claim.post
+                let postId;
+                if (typeof claim.post === 'object' && claim.post !== null) {
+                  postId = claim.post._id || claim.post.id;
+                } else {
+                  postId = claim.post;
+                }
+                console.log(`Mapping claim to postId: ${postId}`);
+                return postId ? postId.toString() : null;
+              })
+              .filter(id => id !== null) // Remove any null values
           );
           
           console.log('📋 Claimed post IDs:', Array.from(claimedPostIds));
@@ -72,8 +101,9 @@ const Recommendations = () => {
           
           // Update recommendations to reflect claim status
           setRecommendations(prev => prev.map(rec => {
-            const isClaimed = claimedPostIds.has(rec.post.id.toString());
-            console.log(`📝 Post ${rec.post.id} claimed status:`, isClaimed);
+            const recPostId = rec.post.id || rec.post._id;
+            const isClaimed = claimedPostIds.has(recPostId.toString());
+            console.log(`📝 Post ${recPostId} claimed status:`, isClaimed);
             return {
               ...rec,
               post: {
@@ -82,6 +112,8 @@ const Recommendations = () => {
               }
             };
           }));
+        } else {
+          console.warn('No claims data received or request failed');
         }
       } catch (err) {
         console.error('Error fetching user claims:', err);

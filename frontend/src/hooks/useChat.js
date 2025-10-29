@@ -10,7 +10,7 @@ export const useChat = () => {
     const [hasMore, setHasMore] = useState(true);
     const [page, setPage] = useState(1);
     
-    const { socket } = useSocket();
+    const { socket, currentUser } = useSocket();
     const messagesEndRef = useRef(null);
 
     // Fetch user's chats
@@ -36,21 +36,40 @@ export const useChat = () => {
         
         setLoading(true);
         try {
+            console.log('Fetching messages for chat:', chatId, 'Page:', pageNum);
             const response = await fetch(`http://localhost:8000/api/v1/chat/${chatId}/messages?page=${pageNum}&limit=50`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                    'Content-Type': 'application/json'
                 }
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
+            console.log('Messages response:', data);
             
             if (data.success) {
+                const messages = data.data?.messages || [];
+                console.log(`Fetched ${messages.length} messages for chat ${chatId}`);
+                
                 if (pageNum === 1) {
-                    setMessages(data.data.messages || []);
+                    setMessages(messages);
                 } else {
-                    setMessages(prev => [...(data.data.messages || []), ...prev]);
+                    setMessages(prev => [...messages, ...prev]);
                 }
-                setHasMore(data.data.hasMore || false);
+                
+                setHasMore(data.data?.hasMore || false);
                 setPage(pageNum);
+                
+                // Mark messages as read
+                messages.forEach(message => {
+                    if (message.sender._id !== currentUser?._id) {
+                        markAsRead(message._id, chatId);
+                    }
+                });
             }
         } catch (error) {
             console.error('Error fetching messages:', error);
@@ -61,7 +80,17 @@ export const useChat = () => {
 
     // Send message
     const sendMessage = async (content, chatId, messageType = 'text', file = null) => {
-        if (!socket || (!content && !file)) return;
+        console.log('📤 sendMessage called:', { content, chatId, socket: !!socket });
+        
+        if (!socket) {
+            console.error('❌ Socket not available');
+            return;
+        }
+
+        if (!content && !file) {
+            console.error('❌ No content or file provided');
+            return;
+        }
 
         let fileUrl = null;
         let fileName = null;
@@ -81,6 +110,7 @@ export const useChat = () => {
             fileSize
         };
 
+        console.log('📤 Emitting send_message event:', messageData);
         socket.emit('send_message', messageData);
     };
 
@@ -132,14 +162,28 @@ export const useChat = () => {
         if (!socket) return;
 
         const handleNewMessage = (message) => {
+            console.log('New message received:', message);
+            
+            // Add to messages if in active chat
             if (message.chatId === activeChat?._id) {
                 setMessages(prev => [...prev, message]);
-                markAsRead(message._id, message.chatId);
+                
+                // Mark as read if message is from other user
+                if (message.sender._id !== currentUser?._id) {
+                    markAsRead(message._id, message.chatId);
+                }
             }
+            
             // Update chats list to show latest message
             setChats(prev => prev.map(chat => 
                 chat._id === message.chatId 
-                    ? { ...chat, lastMessage: message }
+                    ? { 
+                        ...chat, 
+                        lastMessage: message,
+                        unreadCount: message.sender._id !== currentUser?._id 
+                            ? (chat.unreadCount || 0) + 1 
+                            : 0
+                    }
                     : chat
             ));
         };
@@ -154,14 +198,20 @@ export const useChat = () => {
             console.log(`${data.userId} stopped typing`);
         };
 
+        const handleMessageError = (data) => {
+            console.error('❌ Message error:', data);
+        };
+
         socket.on('new_message', handleNewMessage);
         socket.on('user_typing', handleUserTyping);
         socket.on('user_stop_typing', handleUserStopTyping);
+        socket.on('message_error', handleMessageError);
 
         return () => {
             socket.off('new_message', handleNewMessage);
             socket.off('user_typing', handleUserTyping);
             socket.off('user_stop_typing', handleUserStopTyping);
+            socket.off('message_error', handleMessageError);
         };
     }, [socket, activeChat]);
 

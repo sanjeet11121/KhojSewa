@@ -112,7 +112,7 @@ export const getUserChats = asyncHandler(async (req, res) => {
     console.log('Executing query...');
     const chats = await Chat.find(chatQuery)
         .populate('participants', 'fullName avatar email phoneNumber')
-        .populate('lastMessage')
+        .populate('lastMessage.sender', 'fullName avatar')
         .populate('claim', 'status description')
         .populate('post', 'title images')
         .sort({ updatedAt: -1 })
@@ -166,19 +166,13 @@ export const getChatMessages = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Chat not found");
     }
 
-    // Get messages with pagination
-    const messages = chat.messages
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice((page - 1) * limit, page * limit)
-        .reverse();
-
-    // Populate sender info for messages
+    // Populate sender info for all messages first
     await chat.populate('messages.sender', 'fullName avatar');
 
     // Mark messages as read for this user
     const unreadMessages = chat.messages.filter(message => 
         !message.readBy.some(read => read.user.toString() === userId.toString()) &&
-        message.sender._id.toString() !== userId.toString()
+        message.sender.toString() !== userId.toString()
     );
 
     for (const message of unreadMessages) {
@@ -190,7 +184,32 @@ export const getChatMessages = asyncHandler(async (req, res) => {
         }
     }
 
-    await chat.save();
+    if (unreadMessages.length > 0) {
+        await chat.save();
+    }
+
+    // Get messages with pagination AFTER populating
+    const totalMessages = chat.messages.length;
+    const messages = chat.messages
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)) // Sort ascending (oldest first)
+        .slice(Math.max(0, totalMessages - (page * limit)), totalMessages) // Get last N messages
+        .map(msg => ({
+            _id: msg._id,
+            sender: msg.sender,
+            content: msg.content,
+            messageType: msg.messageType,
+            fileUrl: msg.fileUrl,
+            fileName: msg.fileName,
+            fileSize: msg.fileSize,
+            readBy: msg.readBy,
+            createdAt: msg.createdAt,
+            updatedAt: msg.updatedAt
+        }));
+
+    console.log('📨 Fetching messages for chat:', chatId);
+    console.log('Total messages in chat:', totalMessages);
+    console.log('Returning messages count:', messages.length);
+    console.log('Sample message:', messages[0]);
 
     return res.status(200).json(
         new ApiResponse(200, {
@@ -198,7 +217,7 @@ export const getChatMessages = asyncHandler(async (req, res) => {
             chatId: chat._id,
             participants: chat.participants,
             currentPage: parseInt(page),
-            hasMore: chat.messages.length > page * limit
+            hasMore: totalMessages > page * limit
         }, "Chat messages fetched successfully")
     );
 });
@@ -237,7 +256,8 @@ export const sendMessage = asyncHandler(async (req, res) => {
     };
 
     chat.messages.push(newMessage);
-    chat.lastMessage = chat.messages[chat.messages.length - 1]._id;
+    // Set lastMessage to the full message object, not just the ID
+    chat.lastMessage = newMessage;
     await chat.save();
 
     await chat.populate('messages.sender', 'fullName avatar');

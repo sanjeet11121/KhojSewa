@@ -134,10 +134,11 @@ const UserInterface = () => {
         storedUser.avatar = newAvatarUrl;
         localStorage.setItem('user', JSON.stringify(storedUser));
         
-        // Auto-refresh after brief delay
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        // Dispatch custom event to notify Navbar and other components
+        window.dispatchEvent(new Event('userUpdated'));
+        
+        alert('Avatar updated successfully!');
+        setIsUploadingAvatar(false);
       } else {
         console.error('Upload failed:', data);
         alert(data.message || "Failed to upload avatar.");

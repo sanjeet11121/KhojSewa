@@ -40,12 +40,12 @@ function SignIn() {
         
         console.log('Sign in successful, received data:', data);
         
-        // Store token with Bearer prefix
-        const tokenWithBearer = `Bearer ${data.data?.accessToken}`;
-        console.log('Token with Bearer prefix:', tokenWithBearer);
+        // Store token WITHOUT Bearer prefix (add it in requests)
+        const accessToken = data.data?.accessToken;
+        console.log('Access token:', accessToken);
         
         localStorage.setItem('user', JSON.stringify(data.data?.user));
-        localStorage.setItem('accessToken', tokenWithBearer);
+        localStorage.setItem('accessToken', accessToken);
         
         // Verify token was stored
         const storedToken = localStorage.getItem('accessToken');
