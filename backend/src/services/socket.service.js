@@ -24,6 +24,7 @@ class SocketService {
                 origin: configuredOrigins.length > 0 ? configuredOrigins : defaultOrigins,
                 methods: ["GET", "POST"],
                 credentials: true
+
             }
         });
 
