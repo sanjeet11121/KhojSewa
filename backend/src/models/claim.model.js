@@ -66,6 +66,41 @@ const claimSchema = new mongoose.Schema({
     }
   },
   
+  // ML Matching Data - Stored from recommendations
+  matchingData: {
+    confidence: {
+      type: String,
+      enum: ['high', 'medium', 'low'],
+    },
+    score: {
+      type: Number,
+      min: 0,
+      max: 1
+    },
+    breakdown: {
+      text: {
+        type: Number,
+        min: 0,
+        max: 1
+      },
+      category: {
+        type: Number,
+        min: 0,
+        max: 1
+      },
+      location: {
+        type: Number,
+        min: 0,
+        max: 1
+      },
+      date: {
+        type: Number,
+        min: 0,
+        max: 1
+      }
+    }
+  },
+  
   // Resolution details
   resolution: {
     status: String,

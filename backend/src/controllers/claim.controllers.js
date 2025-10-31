@@ -9,13 +9,14 @@ import { Chat } from '../models/chat.model.js';
 import mongoose from 'mongoose';
 
 export const createClaim = asyncHandler(async (req, res) => {
-  const { postId, postType, claimMessage, contactInfo, evidence } = req.body;
+  const { postId, postType, claimMessage, contactInfo, evidence, matchingData } = req.body;
   const userId = req.user._id;
 
   console.log('=== BACKEND CLAIM CREATION DEBUG ===');
   console.log('1. Received postId:', postId);
   console.log('2. Received postType:', postType);
   console.log('3. User ID:', userId);
+  console.log('4. ML Matching Data:', matchingData);
 
   // Validation
   if (!postId || !postType || !claimMessage) {
@@ -96,7 +97,7 @@ export const createClaim = asyncHandler(async (req, res) => {
   }
 
   // Create claim with the CORRECT postType (where the post was actually found)
-  const claim = await Claim.create({
+  const claimData = {
     post: postId,
     postType: foundInCollection || postType,
     claimant: userId,
@@ -104,7 +105,15 @@ export const createClaim = asyncHandler(async (req, res) => {
     claimMessage,
     contactInfo: contactInfo || {},
     evidence: evidence || []
-  });
+  };
+
+  // Add ML matching data if provided (from recommendations)
+  if (matchingData) {
+    claimData.matchingData = matchingData;
+    console.log('10. Including ML matching data in claim');
+  }
+
+  const claim = await Claim.create(claimData);
 
   console.log('11. Claim created successfully:', claim._id);
 
