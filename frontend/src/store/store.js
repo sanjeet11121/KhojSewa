@@ -166,24 +166,22 @@ export const useAdminStore = create((set, get) => ({
   fetchUserById: async (userId) => {
     set({ userDetailLoading: true, error: null, userDetail: null });
     try {
-      // Try a direct endpoint first (if available in future)
-      const res = await adminAPI.get(`/users/${userId}`);
-      const payload = res.data.data || res.data;
-      set({ userDetail: payload.user || payload, userDetailLoading: false });
-      return payload.user || payload;
-    } catch (errDirect) {
-      // Fallback: list users and find locally (since backend lacks single-user fetch)
-      try {
-        const listRes = await adminAPI.get(`/users?page=1&limit=1000`);
-        const data = listRes.data.data || listRes.data || {};
-        const found = (data.users || []).find(u => u._id === userId);
-        set({ userDetail: found || null, userDetailLoading: false });
-        return found || null;
-      } catch (errList) {
-        console.error("fetchUserById fallback error:", errList);
-        set({ error: extractError(errList), userDetailLoading: false });
-        return null;
+      // Prefer existing users in store first
+      const local = (get().users || []).find(u => u._id === userId);
+      if (local) {
+        set({ userDetail: local, userDetailLoading: false });
+        return local;
       }
+      // Backend has no /admin/users/:id; fetch a larger page and find locally
+      const listRes = await adminAPI.get(`/users?page=1&limit=1000`);
+      const data = listRes.data.data || listRes.data || {};
+      const found = (data.users || []).find(u => u._id === userId) || null;
+      set({ userDetail: found, userDetailLoading: false });
+      return found;
+    } catch (err) {
+      console.error("fetchUserById error:", err);
+      set({ error: extractError(err), userDetailLoading: false });
+      return null;
     }
   },
 
