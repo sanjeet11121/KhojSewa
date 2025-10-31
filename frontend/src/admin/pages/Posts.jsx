@@ -22,15 +22,25 @@ export default function Posts() {
     if (Array.isArray(post?.images) && post.images.length > 0) src = post.images[0];
     if (!src && Array.isArray(post?.photos) && post.photos.length > 0) src = post.photos[0];
     if (!src && Array.isArray(post?.media) && post.media.length > 0) src = post.media[0];
-    if (!src) src = post?.thumbnail || post?.coverImage || post?.image || post?.imageUrl || post?.photo || null;
+    // Other possible fields seen in variations
+    if (!src && Array.isArray(post?.pictures) && post.pictures.length > 0) src = post.pictures[0];
+    if (!src && Array.isArray(post?.gallery) && post.gallery.length > 0) src = post.gallery[0];
+    if (!src && Array.isArray(post?.attachments) && post.attachments.length > 0) src = post.attachments[0];
+    if (!src && Array.isArray(post?.files) && post.files.length > 0) src = post.files[0];
+    if (!src) src = post?.thumbnail || post?.coverImage || post?.image || post?.imageUrl || post?.photo || post?.fileUrl || null;
 
     // If it's an object, pull a likely URL field
     if (src && typeof src === "object") {
       src = src.url || src.secure_url || src.secureUrl || src.path || src.location || src.href || null;
     }
 
-    // Nothing found -> placeholder
-    if (!src || typeof src !== "string") return "/placeholder.png";
+    // Nothing found -> inline SVG placeholder (no network needed)
+    const inlinePlaceholder = "data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'>\
+  <rect width='100%' height='100%' fill='rgba(243,244,246,1)'/>\
+  <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='rgba(107,114,128,1)' font-family='sans-serif' font-size='24'>Image Unavailable</text>\
+</svg>";
+    if (!src || typeof src !== "string") return inlinePlaceholder;
 
     // Already absolute
     const lower = src.toLowerCase();
@@ -70,7 +80,6 @@ export default function Posts() {
       withCredentials: true,
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'X-HTTP-Method-Override': 'DELETE',
       },
     };
 
@@ -125,19 +134,8 @@ export default function Posts() {
         break;
       } catch (e) {
         lastError = e;
-        // Try next candidate on 401/403/404; break immediately for 5xx network errors? keep trying anyway.
-        try {
-          // Some backends use POST for delete actions; try POST as a fallback
-          const client = axios.create({ baseURL, ...commonCfg });
-          const url = `${baseURL}${path}`;
-          console.debug("Attempting POST as delete:", url);
-          await client.post(path, { id: idCandidates[0], type });
-          success = true;
-          break;
-        } catch (e2) {
-          lastError = e2;
-          continue;
-        }
+        // Try next candidate
+        continue;
       }
     }
 
@@ -177,24 +175,31 @@ export default function Posts() {
                   className="max-h-full max-w-full object-contain p-2 transition duration-300"
                   loading="lazy"
                   decoding="async"
+                  crossOrigin="anonymous"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
-                    if (e.currentTarget.src.endsWith('/placeholder.png')) return;
-                    e.currentTarget.src = '/placeholder.png';
+                    const fallback = "data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'>\
+  <rect width='100%' height='100%' fill='rgba(243,244,246,1)'/>\
+  <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='rgba(107,114,128,1)' font-family='sans-serif' font-size='24'>Image Unavailable</text>\
+</svg>";
+                    if (e.currentTarget.src === fallback) return;
+                    console.error('Post image failed to load', { id: post._id || post.id, src: e.currentTarget.src });
+                    e.currentTarget.src = fallback;
                   }}
                 />
               </div>
-              <div className="absolute inset-0 bg-black bg-opacity-10 group-hover:bg-opacity-20 transition duration-300" />
+              <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition duration-300" />
               <div className="absolute bottom-0 left-0 p-4 text-white z-10 w-full">
-                <h2 className="text-xl font-semibold">{post.title}</h2>
-                <p className="text-sm">{post.description}</p>
-                <p className="text-xs mt-1">
+                <h2 className="text-xl text-gray-500 font-semibold">{post.title}</h2>
+                <p className="text-sm text-gray-500">{post.description}</p>
+                <p className="text-xs text-gray-500 mt-1">
                   Posted by: {post.user?.fullName || post.user?.username}
                 </p>
-                <p className="text-xs">
+                <p className="text-xs text-gray-500">
                   Date: {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : ""}
                 </p>
-                <p className="text-xs">Status: {post.status}</p>
+                <p className="text-xs text-gray-500">Status: {post.status}</p>
 
                 <div className="flex gap-2 mt-2">
                   <button

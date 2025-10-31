@@ -135,8 +135,13 @@ function Navbar() {
                 </Link>
 
                 <div className="relative">
-                  <button onClick={() => setShowNotifications(!showNotifications)} className="text-white hover:text-indigo-200">
+                  <button onClick={() => setShowNotifications(!showNotifications)} className="text-white hover:text-indigo-200 relative">
                     <BellIcon className="h-6 w-6" />
+                    {notifications.length > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {notifications.length > 9 ? '9+' : notifications.length}
+                      </span>
+                    )}
                   </button>
                   {showNotifications && (
                     <div className="absolute right-0 mt-2 w-72 bg-white text-gray-800 shadow-lg rounded-lg z-50 max-h-64 overflow-auto">
@@ -200,8 +205,13 @@ function Navbar() {
               <Link to="/user/messages" className="w-full flex items-center text-white px-3 py-2 rounded-md hover:bg-indigo-600">
                 <ChatBubbleLeftIcon className="h-5 w-5 mr-2" /> Messages
               </Link>
-              <button onClick={() => setShowNotifications(!showNotifications)} className="w-full flex items-center text-white px-3 py-2 rounded-md hover:bg-indigo-600">
+              <button onClick={() => setShowNotifications(!showNotifications)} className="w-full flex items-center text-white px-3 py-2 rounded-md hover:bg-indigo-600 relative">
                 <BellIcon className="h-5 w-5 mr-2" /> Notifications
+                {notifications.length > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {notifications.length > 9 ? '9+' : notifications.length}
+                  </span>
+                )}
               </button>
               {showNotifications && (
                 <div className="bg-white text-gray-800 shadow-lg rounded-lg z-50 max-h-64 overflow-auto">

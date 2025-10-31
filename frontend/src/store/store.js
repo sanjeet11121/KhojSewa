@@ -331,4 +331,28 @@ export const useAdminStore = create((set, get) => ({
       return null;
     }
   },
+
+  deleteNotification: async (notificationId) => {
+    set({ notificationsLoading: true, error: null });
+    try {
+      let current = [];
+      try {
+        const raw = localStorage.getItem('notifications');
+        current = raw ? JSON.parse(raw) : [];
+      } catch { current = []; }
+      if (!Array.isArray(current)) current = [];
+      const updated = current.filter(n => n.id !== notificationId && n._id !== notificationId);
+      localStorage.setItem('notifications', JSON.stringify(updated));
+      set((state) => ({
+        notifications: (state.notifications || []).filter(n => n.id !== notificationId && n._id !== notificationId),
+        notificationsLoading: false,
+      }));
+      try { window.dispatchEvent(new Event('notificationsUpdated')); } catch {}
+      return true;
+    } catch (err) {
+      console.error("deleteNotification error:", err);
+      set({ error: extractError(err), notificationsLoading: false });
+      return false;
+    }
+  },
 }));

@@ -6,7 +6,10 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary, uploadBufferToCloudinary } from "../utils/cloudinary.js";
 
 // Common utility functions
-const validatePostOwnership = (post, userId) => {
+const validatePostOwnership = (post, userId, userRole) => {
+    // Allow admins to modify any post
+    if (userRole === 'admin') return;
+    
     if (post.user.toString() !== userId.toString()) {
         throw new ApiError(403, "You don't have permission to modify this post");
     }
@@ -209,7 +212,7 @@ const deletePost = asyncHandler(async(req, res) => {
         throw new ApiError(404, "Post not found");
     }
 
-    validatePostOwnership(post, userId);
+    validatePostOwnership(post, userId, req.user.role);
 
     if (type === 'found') {
         await FoundPost.findByIdAndDelete(postId);
@@ -305,7 +308,7 @@ const updatePost = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Post not found");
     }
 
-    validatePostOwnership(post, userId);
+    validatePostOwnership(post, userId, req.user.role);
 
     // Update fields
     const updateData = {

@@ -8,6 +8,7 @@ export default function Notifications() {
   const notificationsLoading = useAdminStore((s) => s.notificationsLoading);
   const fetchNotifications = useAdminStore((s) => s.fetchNotifications);
   const postNotification = useAdminStore((s) => s.postNotification);
+  const deleteNotification = useAdminStore((s) => s.deleteNotification);
 
   const [newMessage, setNewMessage] = useState("");
 
@@ -21,6 +22,11 @@ export default function Notifications() {
     if (!newMessage.trim()) return;
     const created = await postNotification(newMessage.trim());
     if (created) setNewMessage("");
+  };
+
+  const handleDeleteNotification = async (notificationId) => {
+    if (!window.confirm("Delete this notification?")) return;
+    await deleteNotification(notificationId);
   };
 
   // ✅ Memoize notifications list to avoid unnecessary recalculation
@@ -63,11 +69,20 @@ export default function Notifications() {
           <li className="text-gray-500">No notifications yet.</li>
         ) : (
           displayedNotifications.map((note) => (
-            <li key={note._id || note.id} className="border-b last:border-b-0 py-2">
-              <p className="font-medium">{note.message}</p>
-              <span className="text-sm text-gray-500">
-                {note.createdAt ? new Date(note.createdAt).toLocaleString() : ""}
-              </span>
+            <li key={note._id || note.id} className="border-b last:border-b-0 py-3 flex items-start justify-between">
+              <div className="flex-1">
+                <p className="font-medium">{note.message}</p>
+                <span className="text-sm text-gray-500">
+                  {note.createdAt ? new Date(note.createdAt).toLocaleString() : ""}
+                </span>
+              </div>
+              <button
+                onClick={() => handleDeleteNotification(note.id || note._id)}
+                className="ml-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                disabled={notificationsLoading}
+              >
+                Delete
+              </button>
             </li>
           ))
         )}
