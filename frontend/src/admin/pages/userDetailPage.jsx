@@ -25,11 +25,11 @@ export default function UserDetailPage() {
   return (
     <div className="p-6 max-w-xl mx-auto">
       <CardComponent
-        profilePicture={user.profilePicture || user.avatar || ""}
+        profilePicture={user.profilePicture || user.avatar || "/placeholder.png"}
         username={user.fullName || user.username}
         email={user.email}
         phone={user.phone}
-        posts={user.posts}
+        posts={user.postCount ?? (Array.isArray(user.posts) ? user.posts.length : 0)}
         status={user.isActive ? "Online" : "Offline"}
       />
     </div>

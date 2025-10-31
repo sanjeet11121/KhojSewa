@@ -23,9 +23,8 @@ export default function Posts() {
   const handlePageChange = (page) => setCurrentPage(page);
 
   const handleStatusChange = async (postId, status) => {
+    // Store simulates status locally (no backend endpoint). Do not refetch here.
     await updatePostStatus(postId, status);
-    // Refresh current page after update
-    fetchPosts(currentPage, POSTS_PER_PAGE);
   };
 
   // ✅ Memoize posts to avoid unnecessary recalculation
@@ -66,22 +65,26 @@ export default function Posts() {
                 <p className="text-xs">Status: {post.status}</p>
 
                 <div className="flex gap-2 mt-2">
-                  {post.status !== "Removed" && (
-                    <>
+                  <>
+                    {post.status !== "resolved" && (
                       <button
                         className="bg-green-500 px-2 py-1 rounded text-white"
-                        onClick={() => handleStatusChange(post._id || post.id, "Approved")}
+                        onClick={() => handleStatusChange(post._id || post.id, "resolved")}
+                        disabled={postsLoading}
                       >
-                        Approve
+                        Mark Resolved
                       </button>
+                    )}
+                    {post.status !== "active" && (
                       <button
                         className="bg-red-500 px-2 py-1 rounded text-white"
-                        onClick={() => handleStatusChange(post._id || post.id, "Removed")}
+                        onClick={() => handleStatusChange(post._id || post.id, "active")}
+                        disabled={postsLoading}
                       >
-                        Remove
+                        Mark Active
                       </button>
-                    </>
-                  )}
+                    )}
+                  </>
                 </div>
               </div>
             </div>

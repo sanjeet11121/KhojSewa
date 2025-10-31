@@ -85,8 +85,39 @@ export const useAdminStore = create((set, get) => ({
   fetchAdminStats: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await adminAPI.get("/stats");
-      set({ stats: res.data.data || res.data, loading: false });
+      const [adminRes, postsRes, activityRes] = await Promise.all([
+        adminAPI.get("/stats/overview"),
+        postsAPI.get("/admin/stats/posts"),
+        postsAPI.get("/admin/stats/posting-activity?period=month"),
+      ]);
+
+      const adminData = adminRes?.data?.data || adminRes?.data || {};
+      const postsData = postsRes?.data?.data || postsRes?.data || {};
+      const activityData = activityRes?.data?.data || activityRes?.data || {};
+
+      const overview = postsData.overview || {};
+      const lostArr = activityData?.activity?.lostPosts || [];
+      const foundArr = activityData?.activity?.foundPosts || [];
+
+      const mapCounts = (arr) => {
+        const m = new Map();
+        arr.forEach(it => { if (it?._id?.date) m.set(it._id.date, it.count || 0); });
+        return m;
+      };
+      const lostMap = mapCounts(lostArr);
+      const foundMap = mapCounts(foundArr);
+      const dates = Array.from(new Set([...lostMap.keys(), ...foundMap.keys()])).sort();
+      const monthlyData = dates.map(d => ({ month: d, lost: lostMap.get(d) || 0, found: foundMap.get(d) || 0 }));
+
+      const merged = {
+        ...adminData,
+        totalLostPosts: overview.totalLostPosts || 0,
+        totalFoundPosts: overview.totalFoundPosts || 0,
+        pendingPosts: overview.activePosts || 0,
+        monthlyData,
+      };
+
+      set({ stats: merged, loading: false });
     } catch (err) {
       console.error("fetchAdminStats error:", err);
       set({ error: extractError(err), loading: false });
@@ -97,14 +128,32 @@ export const useAdminStore = create((set, get) => ({
   fetchAllUsers: async (page = 1, limit = 10) => {
     set({ loading: true, error: null });
     try {
+      // Fetch users list first
       const res = await adminAPI.get(`/users?page=${page}&limit=${limit}`);
-      const payload = res.data.data || res.data;
+      const payload = res?.data?.data ?? res?.data ?? {};
+      const usersArr = payload.users || [];
+
+      // Fetch online users; skip contributors stats (backend endpoint unstable)
+      const onlineRes = await adminAPI.get(`/users/online/current?limit=1000`);
+
+      const onlineData = onlineRes?.data?.data || onlineRes?.data || {};
+      const onlineSet = new Set((onlineData.onlineUsers || []).map(u => u._id));
+
+      // No contributors stats; rely on fallback post count if available
+      const postCounts = {};
+
+      const enriched = usersArr.map(u => ({
+        ...u,
+        isOnline: onlineSet.has(u._id),
+        postCount: postCounts[u._id] ?? (u.postCount ?? (Array.isArray(u.posts) ? u.posts.length : 0)),
+      }));
+
       set({
-        users: payload.users || payload,
+        users: enriched,
         usersMeta: {
-          page: payload.page || page,
+          page: payload.currentPage || page,
           totalPages: payload.totalPages || 1,
-          total: payload.total || (payload.users ? payload.users.length : 0),
+          total: payload.totalUsers || usersArr.length,
         },
         loading: false,
       });
@@ -117,21 +166,31 @@ export const useAdminStore = create((set, get) => ({
   fetchUserById: async (userId) => {
     set({ userDetailLoading: true, error: null, userDetail: null });
     try {
-      const res = await adminAPI.get(`/user/${userId}`);
+      // Try a direct endpoint first (if available in future)
+      const res = await adminAPI.get(`/users/${userId}`);
       const payload = res.data.data || res.data;
       set({ userDetail: payload.user || payload, userDetailLoading: false });
-      return payload;
-    } catch (err) {
-      console.error("fetchUserById error:", err);
-      set({ error: extractError(err), userDetailLoading: false });
-      return null;
+      return payload.user || payload;
+    } catch (errDirect) {
+      // Fallback: list users and find locally (since backend lacks single-user fetch)
+      try {
+        const listRes = await adminAPI.get(`/users?page=1&limit=1000`);
+        const data = listRes.data.data || listRes.data || {};
+        const found = (data.users || []).find(u => u._id === userId);
+        set({ userDetail: found || null, userDetailLoading: false });
+        return found || null;
+      } catch (errList) {
+        console.error("fetchUserById fallback error:", errList);
+        set({ error: extractError(errList), userDetailLoading: false });
+        return null;
+      }
     }
   },
 
   deleteUser: async (userId) => {
     set({ loading: true, error: null });
     try {
-      await adminAPI.delete(`/user/${userId}`);
+      await adminAPI.delete(`/users/${userId}`);
       set((state) => ({
         users: state.users.filter((u) => u._id !== userId),
         loading: false,
@@ -147,7 +206,7 @@ export const useAdminStore = create((set, get) => ({
   updateUserRole: async (userId, role) => {
     set({ loading: true, error: null });
     try {
-      const res = await adminAPI.patch(`/user/${userId}/role`, { role });
+      const res = await adminAPI.patch(`/users/${userId}/role`, { role });
       const updated = res.data.data || res.data;
       set((state) => ({
         users: state.users.map((u) =>
@@ -166,7 +225,7 @@ export const useAdminStore = create((set, get) => ({
   toggleUserStatus: async (userId, isActive) => {
     set({ loading: true, error: null });
     try {
-      const res = await adminAPI.patch(`/user/${userId}/status`, { isActive });
+      const res = await adminAPI.patch(`/users/${userId}/status`, { isActive });
       const updated = res.data.data || res.data;
       set((state) => ({
         users: state.users.map((u) =>
@@ -186,15 +245,24 @@ export const useAdminStore = create((set, get) => ({
   fetchPosts: async (page = 1, limit = 10) => {
     set({ postsLoading: true, error: null });
     try {
-      const res = await adminAPI.get(`/posts?page=${page}&limit=${limit}`);
-      const payload = res.data.data || res.data;
+      // Backend has no /admin/posts; use existing posts endpoints
+      const [lostRes, foundRes] = await Promise.all([
+        postsAPI.get('/lost'),
+        postsAPI.get('/found'),
+      ]);
+      const lost = (lostRes.data.data || lostRes.data || []).map(p => ({ ...p, type: 'lost', status: p.isFound ? 'resolved' : 'active' }));
+      const found = (foundRes.data.data || foundRes.data || []).map(p => ({ ...p, type: 'found', status: p.isReturned ? 'resolved' : 'active' }));
+      const combined = [...lost, ...found].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      // Client-side pagination (backend lists are limited by server to 10 each)
+      const total = combined.length;
+      const start = (page - 1) * limit;
+      const paged = combined.slice(start, start + limit);
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+
       set({
-        posts: payload.posts || payload,
-        postsMeta: {
-          page: payload.page || page,
-          totalPages: payload.totalPages || 1,
-          total: payload.total || (payload.posts ? payload.posts.length : 0),
-        },
+        posts: paged,
+        postsMeta: { page, totalPages, total },
         postsLoading: false,
       });
     } catch (err) {
@@ -204,13 +272,17 @@ export const useAdminStore = create((set, get) => ({
   },
 
   updatePostStatus: async (postId, status) => {
+    // Backend has no admin status endpoint; simulate locally
     set({ postsLoading: true, error: null });
     try {
-      const res = await adminAPI.patch(`/posts/${postId}/status`, { status });
-      const updated = res.data.data || res.data;
+      const updated = { _id: postId, status };
       set((state) => ({
-        posts: state.posts.map((p) =>
-          p._id === postId ? { ...p, ...updated } : p
+        posts: (state.posts || []).map((p) =>
+          p._id === postId
+            ? { ...p, status,
+                isFound: p.type === 'lost' ? status === 'resolved' : p.isFound,
+                isReturned: p.type === 'found' ? status === 'resolved' : p.isReturned }
+            : p
         ),
         postsLoading: false,
       }));
@@ -224,14 +296,10 @@ export const useAdminStore = create((set, get) => ({
 
   // ----------------- NOTIFICATIONS -----------------
   fetchNotifications: async () => {
+    // Backend has no /admin/notifications; return empty list to avoid 404
     set({ notificationsLoading: true, error: null });
     try {
-      const res = await adminAPI.get("/notifications");
-      const payload = res.data.data || res.data;
-      set({
-        notifications: payload.notifications || payload || [],
-        notificationsLoading: false,
-      });
+      set({ notifications: [], notificationsLoading: false });
     } catch (err) {
       console.error("fetchNotifications error:", err);
       set({ error: extractError(err), notificationsLoading: false });
@@ -239,10 +307,10 @@ export const useAdminStore = create((set, get) => ({
   },
 
   postNotification: async (message) => {
+    // Stub: add to local store since backend route doesn't exist
     set({ notificationsLoading: true, error: null });
     try {
-      const res = await adminAPI.post("/notifications", { message });
-      const newNote = res.data.data || res.data;
+      const newNote = { id: `${Date.now()}`, message, createdAt: new Date().toISOString() };
       set((state) => ({
         notifications: [newNote, ...(state.notifications || [])],
         notificationsLoading: false,

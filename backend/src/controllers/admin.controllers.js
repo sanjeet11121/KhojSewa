@@ -2,8 +2,8 @@ import { User } from '../models/user.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-// import { FoundPost } from "../models/foundPost.model.js";
-// import { LostPost } from "../models/lostPost.model.js";
+import { FoundPost } from "../models/foundPost.model.js";
+import { LostPost } from "../models/lostPost.model.js";
 
 // 1. Get all users (with pagination)
 export const getAllUsers = asyncHandler(async (req, res) => {
@@ -17,8 +17,22 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 
     const totalUsers = await User.countDocuments();
 
+    // Enrich users with postCount (lost + found) for current page only
+    const enriched = await Promise.all(
+        users.map(async (u) => {
+            const [lost, found] = await Promise.all([
+                LostPost.countDocuments({ user: u._id }),
+                FoundPost.countDocuments({ user: u._id })
+            ]);
+            const postCount = (lost || 0) + (found || 0);
+            // Convert mongoose doc to plain and append
+            const obj = u.toObject ? u.toObject() : u;
+            return { ...obj, postCount };
+        })
+    );
+
     return res.status(200).json(new ApiResponse(200, {
-        users,
+        users: enriched,
         totalUsers,
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalUsers / limit)

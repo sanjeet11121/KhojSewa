@@ -1,9 +1,10 @@
 // FILE: src/pages/admin/Users.jsx
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { useAdminStore } from "../../store/store";
 
 export default function Users() {
-  // ✅ Only extract needed store values, stable reference
   const users = useAdminStore((s) => s.users);
   const usersMeta = useAdminStore((s) => s.usersMeta);
   const loading = useAdminStore((s) => s.loading);
@@ -13,20 +14,51 @@ export default function Users() {
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(usersMeta.page || 1);
+  const [onlineIds, setOnlineIds] = useState(new Set());
 
-  // Fetch users on mount and whenever currentPage changes
+  const navigate = useNavigate();
+
+  const getToken = () =>
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("admin");
+
+  const authHeaders = () => ({
+    withCredentials: true,
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+
+  // Fetch users on mount and when page changes
   useEffect(() => {
     fetchAllUsers(currentPage, 10);
-  }, [currentPage]);
+  }, [currentPage, fetchAllUsers]);
 
-  // Update local currentPage if store page changes (pagination)
+  // Fetch online users list
+  useEffect(() => {
+    const fetchOnline = async () => {
+      try {
+        const res = await axios.get(
+          "http://localhost:8000/api/v1/admin/users/online/current?limit=1000",
+          authHeaders()
+        );
+        const data = res?.data?.data || res?.data || {};
+        const ids = new Set((data.onlineUsers || []).map((u) => u._id));
+        setOnlineIds(ids);
+      } catch (e) {
+        setOnlineIds(new Set());
+      }
+    };
+    fetchOnline();
+  }, []);
+
+  // Update currentPage if store changes
   useEffect(() => {
     setCurrentPage(usersMeta.page || 1);
   }, [usersMeta.page]);
 
   const handleToggleStatus = async (user) => {
     await toggleUserStatus(user._id, !user.isActive);
-    fetchAllUsers(currentPage, 10); // refresh page
+    fetchAllUsers(currentPage, 10);
   };
 
   const handleDeleteUser = async (userId) => {
@@ -35,7 +67,7 @@ export default function Users() {
     if (!ok) alert("Failed to remove user.");
   };
 
-  // Memoize filtered users to avoid recalculating every render
+  // Filter users by search
   const filteredUsers = useMemo(() => {
     return (users || []).filter((user) =>
       (user.fullName || user.username || "").toLowerCase().includes(search.toLowerCase())
@@ -77,36 +109,43 @@ export default function Users() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr
-                    key={user._id}
-                    className="cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="p-3">{user.fullName || user.username}</td>
-                    <td className="p-3">{user.isActive ? "Active" : "Blocked"}</td>
-                    <td className="p-3 text-center font-semibold">{user.posts?.length || 0}</td>
-                    <td className="p-3 text-center flex justify-center gap-2">
-                      <button
-                        className={`px-3 py-1 rounded text-sm ${
-                          user.isActive
-                            ? "bg-yellow-500 text-white hover:bg-yellow-600"
-                            : "bg-green-500 text-white hover:bg-green-600"
-                        }`}
-                        onClick={() => handleToggleStatus(user)}
-                        disabled={loading}
-                      >
-                        {user.isActive ? "Block" : "Unblock"}
-                      </button>
-                      <button
-                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
-                        onClick={() => handleDeleteUser(user._id)}
-                        disabled={loading}
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredUsers.map((user) => {
+                  // Safe total posts calculation
+                  const totalPosts =
+                    user.postCount ?? (Array.isArray(user.posts) ? user.posts.length : 0);
+
+                  return (
+                    <tr
+                      key={user._id}
+                      className="cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => navigate(`/admin/users/${user._id}`)}
+                    >
+                      <td className="p-3">{user.fullName || user.username}</td>
+                      <td className="p-3">{onlineIds.has(user._id) ? "Online" : "Offline"}</td>
+                      <td className="p-3 text-center font-semibold">{totalPosts}</td>
+                      <td className="p-3 text-center flex justify-center gap-2">
+                        <button
+                          className={`px-3 py-1 rounded text-sm ${
+                            user.isActive
+                              ? "bg-yellow-500 text-white hover:bg-yellow-600"
+                              : "bg-green-500 text-white hover:bg-green-600"
+                          }`}
+                          onClick={() => handleToggleStatus(user)}
+                          disabled={loading}
+                        >
+                          {user.isActive ? "Block" : "Unblock"}
+                        </button>
+                        <button
+                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
+                          onClick={() => handleDeleteUser(user._id)}
+                          disabled={loading}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
