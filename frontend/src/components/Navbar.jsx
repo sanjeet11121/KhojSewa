@@ -70,16 +70,30 @@ function Navbar() {
   }, []);
 
   useEffect(() => {
-    if (isSignedIn) {
-      fetch("/api/notifications", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      })
-        .then(res => res.json())
-        .then(data => setNotifications(data || []))
-        .catch(err => console.error("Failed to fetch notifications:", err));
-    }
+    const load = () => {
+      try {
+        const raw = localStorage.getItem('notifications');
+        const list = raw ? JSON.parse(raw) : [];
+        setNotifications(Array.isArray(list) ? list : []);
+      } catch {
+        setNotifications([]);
+      }
+    };
+
+    // Load immediately when signed in
+    if (isSignedIn) load();
+
+    const onUpdate = () => load();
+    const onStorage = (e) => {
+      if (!e || e.key === 'notifications' || e.key === null) load();
+    };
+
+    window.addEventListener('notificationsUpdated', onUpdate);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('notificationsUpdated', onUpdate);
+      window.removeEventListener('storage', onStorage);
+    };
   }, [isSignedIn]);
 
   const handleSignOut = () => {

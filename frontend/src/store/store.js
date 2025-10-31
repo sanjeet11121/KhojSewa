@@ -294,10 +294,13 @@ export const useAdminStore = create((set, get) => ({
 
   // ----------------- NOTIFICATIONS -----------------
   fetchNotifications: async () => {
-    // Backend has no /admin/notifications; return empty list to avoid 404
     set({ notificationsLoading: true, error: null });
     try {
-      set({ notifications: [], notificationsLoading: false });
+      const raw = localStorage.getItem('notifications');
+      let list = [];
+      try { list = raw ? JSON.parse(raw) : []; } catch { list = []; }
+      if (!Array.isArray(list)) list = [];
+      set({ notifications: list, notificationsLoading: false });
     } catch (err) {
       console.error("fetchNotifications error:", err);
       set({ error: extractError(err), notificationsLoading: false });
@@ -305,14 +308,22 @@ export const useAdminStore = create((set, get) => ({
   },
 
   postNotification: async (message) => {
-    // Stub: add to local store since backend route doesn't exist
     set({ notificationsLoading: true, error: null });
     try {
       const newNote = { id: `${Date.now()}`, message, createdAt: new Date().toISOString() };
+      let current = [];
+      try {
+        const raw = localStorage.getItem('notifications');
+        current = raw ? JSON.parse(raw) : [];
+      } catch { current = []; }
+      if (!Array.isArray(current)) current = [];
+      const updated = [newNote, ...current];
+      localStorage.setItem('notifications', JSON.stringify(updated));
       set((state) => ({
         notifications: [newNote, ...(state.notifications || [])],
         notificationsLoading: false,
       }));
+      try { window.dispatchEvent(new Event('notificationsUpdated')); } catch {}
       return newNote;
     } catch (err) {
       console.error("postNotification error:", err);
