@@ -325,7 +325,7 @@ const ClaimsManagement = () => {
                 ML Matching Confidence
                 {confidence.isML ? (
                   <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                    🎯 Same as claimant saw
+                    🎯 
                   </span>
                 ) : (
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
@@ -345,7 +345,7 @@ const ClaimsManagement = () => {
                   <div>
                     <span className="font-semibold text-lg">{confidence.label}</span>
                     <p className="text-sm text-gray-600 mt-1">
-                      This is the exact same confidence level the claimant saw when making this claim
+                      This is the confidence level the claimant got after posting his claim
                     </p>
                   </div>
                   <span className="text-2xl font-bold">{confidence.score}%</span>
