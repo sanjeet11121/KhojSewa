@@ -38,7 +38,7 @@ const lostPostSchema = new mongoose.Schema({
     category: {
         type: String,
         required: true,
-        enum: ['Electronics', 'Stationeries', 'Clothing', 'Food', 'Toys', 'Other'],
+        enum: ['electronics', 'stationeries', 'clothing', 'food', 'toys', 'other'],
         default: 'Other'
     },
     itemName: { type: String },

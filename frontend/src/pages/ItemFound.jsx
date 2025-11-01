@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from '../config.js';
+import { createPost } from '../utils/postApi'; 
 import LocationSelector from '../components/LocationSelector';
 
 export default function FoundItemPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const type = 'found';
   
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -38,165 +39,109 @@ export default function FoundItemPage() {
     console.log('📍 Location selected:', locationData);
     
     if (locationData) {
-      setFormData(prev => ({
-        ...prev,
-        locationData: locationData,
-        location: locationData.address || `Location at ${locationData.latitude?.toFixed(6)}, ${locationData.longitude?.toFixed(6)}`
-      }));
-      console.log('✅ Location data updated');
+        // Ensure coordinates are in the correct format [longitude, latitude]
+        const coordinates = locationData.coordinates || [locationData.longitude, locationData.latitude];
+        
+        setFormData(prev => ({
+            ...prev,
+            locationData: {
+                ...locationData,
+                coordinates: coordinates
+            },
+            location: locationData.address || `Location at ${locationData.latitude?.toFixed(6)}, ${locationData.longitude?.toFixed(6)}`
+        }));
+        console.log('✅ Location data updated:', coordinates);
     } else {
-      setFormData(prev => ({
-        ...prev,
-        locationData: null,
-        location: ''
-      }));
+        setFormData(prev => ({
+            ...prev,
+            locationData: null,
+            location: ''
+        }));
     }
   };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files).slice(0, 3);
-    setFormData(prev => ({ ...prev, images: files }));
-    setImagePreviews(files.map(file => URL.createObjectURL(file)));
+    
+    // Validate file types and sizes
+    const validFiles = files.filter(file => {
+      if (!file.type.startsWith('image/')) {
+        setError('Please upload only image files (JPEG, PNG, WebP)');
+        return false;
+      }
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit for better compatibility
+        setError('Image size should be less than 2MB');
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length > 0) {
+      setError('');
+      setFormData(prev => ({ ...prev, images: validFiles }));
+      setImagePreviews(validFiles.map(file => URL.createObjectURL(file)));
+    }
   };
 
   const removeImage = (index) => {
     const newImages = [...formData.images];
     const newPreviews = [...imagePreviews];
+    
+    // Revoke the object URL to prevent memory leaks
+    URL.revokeObjectURL(newPreviews[index]);
+    
     newImages.splice(index, 1);
     newPreviews.splice(index, 1);
     setFormData(prev => ({ ...prev, images: newImages }));
     setImagePreviews(newPreviews);
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
-  setSuccess('');
-  setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
 
-  console.log('🚀 Starting form submission...');
-
-  // Validation
-  if (!formData.locationData) {
-    setError('Please select a location on the map');
-    setLoading(false);
-    return;
-  }
-
-  if (formData.images.length === 0) {
-    setError('Please upload at least one image');
-    setLoading(false);
-    return;
-  }
-
-  if (!formData.itemName.trim()) {
-    setError('Please enter item name');
-    setLoading(false);
-    return;
-  }
-
-  if (!formData.category) {
-    setError('Please select category');
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      setError('You must be logged in');
-      setLoading(false);
-      return;
+    // Enhanced validation
+    if (!formData.locationData || !formData.locationData.coordinates) {
+        setError('Please select a location on the map');
+        setLoading(false);
+        return;
     }
 
-    const formDataToSend = new FormData();
-    formDataToSend.append('title', formData.itemName);
-    formDataToSend.append('description', formData.description);
-    formDataToSend.append('locationFound', formData.location);
-    formDataToSend.append('foundDate', formData.date);
-    formDataToSend.append('category', formData.category);
-    
-    // FIX: Ensure location data is properly formatted
-    const locationData = {
-      coordinates: formData.locationData.coordinates, // [longitude, latitude]
-      latitude: formData.locationData.latitude,
-      longitude: formData.locationData.longitude,
-      address: formData.locationData.address,
-      addressDetails: formData.locationData.addressDetails
-    };
-    
-    console.log('📍 Location data being sent:', locationData);
-    formDataToSend.append('location', JSON.stringify(locationData));
-    
-    // Append images
-    formData.images.forEach((img) => {
-      formDataToSend.append('images', img);
-    });
-
-    // Debug what we're sending
-    console.log('🔍 Data being sent to server:');
-    for (let [key, value] of formDataToSend.entries()) {
-      if (key === 'images') {
-        console.log(`🔍 ${key}:`, value.name, value.type, value.size);
-      } else {
-        console.log(`🔍 ${key}:`, value);
-      }
-    }
-
-    console.log('📤 Sending request to server...');
-    
-    const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-    const response = await fetch(`${api}/api/v1/posts/found`, {
-      method: 'POST',
-      headers: { 
-        'Authorization': authToken,
-      },
-      body: formDataToSend,
-    });
-
-    console.log('📥 Response status:', response.status);
-    console.log('📥 Response ok:', response.ok);
-
-    let data;
     try {
-      data = await response.json();
-      console.log('📥 FULL Response data:', data);
-    } catch (parseError) {
-      console.error('❌ Error parsing response:', parseError);
-      throw new Error('Server returned invalid JSON response');
+        // Prepare data for API
+        const postData = {
+            title: formData.itemName.trim(),
+            description: formData.description.trim(),
+            category: formData.category.toLowerCase(), // Ensure lowercase
+            images: formData.images,
+            locationData: {
+                coordinates: formData.locationData.coordinates,
+                address: formData.location,
+                addressDetails: {}
+            },
+            locationFound: formData.location,
+            foundDate: formData.date
+        };
+
+        const result = await createPost(postData, type);
+        
+        if (result.success) {
+            setSuccess('Found item posted successfully! Redirecting...');
+            // Reset form and redirect
+            setTimeout(() => navigate('/'), 2000);
+        } else {
+            setError(result.error);
+        }
+    } catch (err) {
+        console.error('Submission error:', err);
+        setError(err.message || 'Failed to post found item. Please try again.');
+    } finally {
+        setLoading(false);
     }
+  };
 
-    if (!response.ok) {
-      const errorMessage = data.message || data.error || (data.errors && data.errors[0]?.msg) || `Server error: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-
-    // Success case
-    setSuccess('Found item posted successfully! Redirecting...');
-    
-    // Reset form
-    setFormData({
-      itemName: '',
-      category: '',
-      location: '',
-      locationData: null,
-      date: '',
-      description: '',
-      images: [],
-    });
-    setImagePreviews([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    
-    // Redirect after success
-    setTimeout(() => navigate('/'), 2000);
-
-  } catch (err) {
-    console.error('❌ Submission error:', err);
-    setError(err.message || 'Failed to post found item. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
   return (
     <section className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-purple-200 py-12 px-6">
       <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-8">
@@ -204,22 +149,15 @@ const handleSubmit = async (e) => {
           Report a Found Item
         </h2>
 
-        {/* Status Panel
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="font-semibold text-blue-800 mb-2">Form Status:</h3>
-          <div className="text-sm text-blue-700 space-y-1">
-            <div><strong>Location:</strong> {formData.locationData ? '✅ Selected' : '❌ Not selected'}</div>
-            <div><strong>Images:</strong> {formData.images.length > 0 ? `✅ ${formData.images.length} uploaded` : '❌ No images'}</div>
-            <div><strong>All Fields:</strong> {formData.itemName && formData.category && formData.description && formData.date ? '✅ Complete' : '❌ Incomplete'}</div>
-          </div>
-        </div> */}
-
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center gap-2 text-red-700">
               <span className="text-lg">❌</span>
               <span className="font-medium">{error}</span>
             </div>
+            <p className="text-sm text-red-600 mt-2">
+              💡 Try using smaller images (under 2MB) in JPEG or PNG format.
+            </p>
           </div>
         )}
         
@@ -278,6 +216,11 @@ const handleSubmit = async (e) => {
               initialLocation={formData.locationData}
               required={true}
             />
+            {formData.locationData && (
+              <div className="mt-2 text-green-600 text-sm bg-green-50 p-2 rounded">
+                ✅ Location selected: {formData.location}
+              </div>
+            )}
           </div>
 
           {/* Description */}
@@ -292,7 +235,7 @@ const handleSubmit = async (e) => {
               required
               rows="4"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="Describe the item..."
+              placeholder="Describe the item including color, brand, condition, and any identifying features..."
             />
           </div>
 
@@ -322,7 +265,7 @@ const handleSubmit = async (e) => {
                 <span>📷 Choose Images</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   multiple
                   onChange={handleImageUpload}
                   className="hidden"
@@ -354,6 +297,12 @@ const handleSubmit = async (e) => {
                 ))}
               </div>
             )}
+            
+            <div className="mt-2 text-sm text-gray-500 space-y-1">
+              <p>• Supported formats: JPEG, PNG, WebP</p>
+              <p>• Max file size: 2MB per image</p>
+              <p>• Recommended: Use landscape photos with good lighting</p>
+            </div>
           </div>
 
           {/* Submit Button */}
@@ -377,7 +326,7 @@ const handleSubmit = async (e) => {
               )}
             </button>
             
-            {/* {(!formData.locationData || !formData.images.length) && (
+            {(!formData.locationData || !formData.images.length) && (
               <div className="mt-3 space-y-1">
                 {!formData.locationData && (
                   <p className="text-red-600 text-sm">⚠️ Please select a location first</p>
@@ -386,7 +335,7 @@ const handleSubmit = async (e) => {
                   <p className="text-red-600 text-sm">⚠️ Please upload at least one image</p>
                 )}
               </div>
-            )} */}
+            )}
           </div>
         </form>
       </div>

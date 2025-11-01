@@ -1,8 +1,11 @@
+// backend/src/controllers/post.controllers.js
+import mongoose from 'mongoose';
 import { FoundPost } from "../models/foundPost.model.js";
 import { LostPost } from "../models/lostPost.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { User } from "../models/user.model.js";
 import { uploadOnCloudinary, uploadBufferToCloudinary } from "../utils/cloudinary.js";
 
 // Common utility functions
@@ -16,92 +19,57 @@ const validatePostOwnership = (post, userId, userRole) => {
 };
 
 // Found Post Controllers
-const createFoundPost = asyncHandler(async(req, res) => {
-    console.log('FoundPost req.body:', req.body);
-    console.log('FoundPost req.files:', req.files);
-    
-    const { 
-        title, 
-        description, 
-        locationFound, 
-        foundDate, 
-        category,
-        location // This comes as a JSON string from FormData
-    } = req.body;
-    
-    const userId = req.user._id;
-
-    if (!title || !description || !locationFound || !foundDate || !category) {
-        throw new ApiError(400, "All fields are required");
-    }
-
-    // FIX: Parse location from string to object
-    let locationData;
-    try {
-        locationData = typeof location === 'string' ? JSON.parse(location) : location;
-        console.log('🔍 Parsed location data:', locationData);
-    } catch (parseError) {
-        console.error('❌ Error parsing location:', parseError);
-        throw new ApiError(400, "Invalid location data format");
-    }
-
-    // Validate location data AFTER parsing
-    if (!locationData || !locationData.coordinates || locationData.coordinates.length !== 2) {
-        console.log('❌ Location validation failed:', locationData);
-        throw new ApiError(400, "Please select a location on the map");
-    }
-
-    // Accept up to 3 images
+ const createFoundPost = async (req, res) => {
+  try {
     if (!req.files || req.files.length === 0) {
-        throw new ApiError(400, "At least one image is required for found posts");
-    }
-    if (req.files.length > 3) {
-        throw new ApiError(400, "Maximum 3 images allowed");
+      return res.status(400).json({ success: false, message: "No images provided" });
     }
 
     // Upload all images to Cloudinary
-    const imageUrls = [];
-    for (const file of req.files) {
-        try {
-            const cloudinaryResponse = await uploadBufferToCloudinary(file.buffer, file.originalname);
-            if (!cloudinaryResponse || !cloudinaryResponse.url) {
-                throw new Error('Cloudinary upload failed');
-            }
-            imageUrls.push(cloudinaryResponse.url);
-        } catch (err) {
-            console.error('Error uploading image to Cloudinary:', err);
-            throw new ApiError(500, "Image upload failed. Please try again.");
-        }
-    }
-
-    console.log('FoundPost images to save:', req.files.map(f => f.originalname), 'Cloudinary URLs:', imageUrls);
-
-    const post = await FoundPost.create({
-        title,
-        description,
-        images: imageUrls,
-        locationFound, // Keep original text field for backward compatibility
-        location: {    // New GeoJSON location field
-            type: 'Point',
-            coordinates: locationData.coordinates, // [longitude, latitude]
-            address: locationData.address,
-            addressDetails: locationData.addressDetails
-        },
-        foundDate,
-        category: category.toLowerCase(),
-        user: userId
-    });
-    
-    console.log('✅ Saved found post:', post._id);
-
-    return res.status(201).json(
-        new ApiResponse(201, post, "Found post created successfully")
+    const uploadedImages = await Promise.all(
+      req.files.map(async (file) => {
+        const result = await uploadBufferToCloudinary(file.buffer, file.originalname);
+        return result.secure_url;
+      })
     );
-});
+
+    const post = new FoundPost({
+      title: req.body.title,
+      description: req.body.description,
+      category: req.body.category,
+      location: JSON.parse(req.body.location),
+      images: uploadedImages,
+      foundDate: req.body.foundDate,
+      locationFound: req.body.locationFound,
+      user: req.user.id,
+    });
+
+    await post.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Found item created successfully",
+      data: post,
+    });
+  } catch (err) {
+    console.error("❌ Error creating found post:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to create post",
+    });
+  }
+};
+
 // Lost Post Controllers
 const createLostPost = asyncHandler(async(req, res) => {
-    console.log('Request body:', req.body);
-    console.log('Request files:', req.files);
+    console.log('==================== CREATE LOST POST ====================');
+    console.log('📥 req.body:', JSON.stringify(req.body, null, 2));
+    console.log('📁 req.files:', req.files?.map(f => ({
+        fieldname: f.fieldname,
+        originalname: f.originalname,
+        size: f.size,
+        mimetype: f.mimetype
+    })));
     
     const { 
         title, 
@@ -114,15 +82,23 @@ const createLostPost = asyncHandler(async(req, res) => {
     
     const userId = req.user._id;
 
+    // Validate required fields
     if (!title || !description || !locationLost || !lostDate) {
-        throw new ApiError(400, "All fields are required");
+        console.log('❌ Missing required fields:', {
+            title: !!title,
+            description: !!description,
+            locationLost: !!locationLost,
+            lostDate: !!lostDate,
+            category: !!category
+        });
+        throw new ApiError(400, "All required fields must be provided");
     }
 
-    // FIX: Parse location from string to object
+    // Parse location from string to object
     let locationData;
     try {
         locationData = typeof location === 'string' ? JSON.parse(location) : location;
-        console.log('🔍 Parsed location data:', locationData);
+        console.log('📍 Parsed location data:', locationData);
     } catch (parseError) {
         console.error('❌ Error parsing location:', parseError);
         throw new ApiError(400, "Invalid location data format");
@@ -131,36 +107,57 @@ const createLostPost = asyncHandler(async(req, res) => {
     // Validate location data AFTER parsing
     if (!locationData || !locationData.coordinates || locationData.coordinates.length !== 2) {
         console.log('❌ Location validation failed:', locationData);
-        throw new ApiError(400, "Please select a location on the map");
+        throw new ApiError(400, "Please select a location on the map. Coordinates are required.");
     }
 
+    // Validate coordinates are numbers
+    const [longitude, latitude] = locationData.coordinates;
+    if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+        console.log('❌ Invalid coordinate types:', { longitude, latitude });
+        throw new ApiError(400, "Coordinates must be numbers [longitude, latitude]");
+    }
+
+    // Handle images (optional for lost posts)
     let imageUrls = [];
     if (req.files && req.files.length > 0) {
+        if (req.files.length > 3) {
+            throw new ApiError(400, "Maximum 3 images allowed");
+        }
+        
         for (const file of req.files) {
-            const cloudinaryResponse = await uploadBufferToCloudinary(file.buffer, file.originalname);
-            if (cloudinaryResponse && cloudinaryResponse.url) {
-                imageUrls.push(cloudinaryResponse.url);
+            try {
+                console.log(`⬆️  Uploading ${file.originalname} to Cloudinary...`);
+                const cloudinaryResponse = await uploadBufferToCloudinary(file.buffer, file.originalname);
+                if (cloudinaryResponse && cloudinaryResponse.url) {
+                    imageUrls.push(cloudinaryResponse.url);
+                    console.log(`✅ Uploaded: ${cloudinaryResponse.url}`);
+                }
+            } catch (err) {
+                console.error('❌ Error uploading image:', err);
+                // Don't throw error for lost posts as images are optional
             }
         }
     }
 
+    // Create the post
     const post = await LostPost.create({
         title,
         description,
         images: imageUrls,
-        locationLost, // Keep original text field for backward compatibility
-        location: {   // New GeoJSON location field
+        locationLost,
+        location: {
             type: 'Point',
             coordinates: locationData.coordinates, // [longitude, latitude]
-            address: locationData.address,
-            addressDetails: locationData.addressDetails
+            address: locationData.address || locationLost,
+            addressDetails: locationData.addressDetails || {}
         },
-        lostDate,
-        category: category || 'Other',
+        lostDate: new Date(lostDate),
+        category: category ? category.toLowerCase() : 'other',
         user: userId
     });
     
     console.log('✅ Created lost post:', post._id);
+    console.log('==========================================================');
 
     return res.status(201).json(
         new ApiResponse(201, post, "Lost post created successfully")
@@ -314,32 +311,36 @@ const updatePost = asyncHandler(async (req, res) => {
     const updateData = {
         title: req.body.title || post.title,
         description: req.body.description || post.description,
-        category: req.body.category || post.category
+        category: req.body.category ? req.body.category.toLowerCase() : post.category
     };
 
     // Handle location update
     if (req.body.location) {
+        const locationData = typeof req.body.location === 'string' 
+            ? JSON.parse(req.body.location) 
+            : req.body.location;
+            
         updateData.location = {
             type: 'Point',
-            coordinates: req.body.location.coordinates,
-            address: req.body.location.address,
-            addressDetails: req.body.location.addressDetails
+            coordinates: locationData.coordinates,
+            address: locationData.address,
+            addressDetails: locationData.addressDetails || {}
         };
         
         // Also update the text location field
         if (type === 'found') {
-            updateData.locationFound = req.body.location.address || post.locationFound;
+            updateData.locationFound = locationData.address || post.locationFound;
         } else {
-            updateData.locationLost = req.body.location.address || post.locationLost;
+            updateData.locationLost = locationData.address || post.locationLost;
         }
     }
 
     // Handle date update
     if (req.body.foundDate && type === 'found') {
-        updateData.foundDate = req.body.foundDate;
+        updateData.foundDate = new Date(req.body.foundDate);
     }
     if (req.body.lostDate && type === 'lost') {
-        updateData.lostDate = req.body.lostDate;
+        updateData.lostDate = new Date(req.body.lostDate);
     }
 
     // Handle image update
@@ -427,7 +428,7 @@ const getMyPosts = asyncHandler(async (req, res) => {
     );
 });
 
-// New: Find posts near a location
+// Find posts near a location
 const findPostsNearLocation = asyncHandler(async (req, res) => {
     const { latitude, longitude, radius = 5, type = 'both', limit = 20 } = req.query;
 
@@ -502,7 +503,7 @@ const findPostsNearLocation = asyncHandler(async (req, res) => {
     );
 });
 
-// New: Get posts with location data for map view
+// Get posts with location data for map view
 const getPostsForMap = asyncHandler(async (req, res) => {
     const { type = 'both', bounds } = req.query;
 
@@ -571,9 +572,7 @@ const getPostsForMap = asyncHandler(async (req, res) => {
     );
 });
 
-// Post Statistics Functions
-
-// Get total posts count for a specific user
+// Post Statistics Functions - keeping your existing implementations
 const getUserPostStats = asyncHandler(async (req, res) => {
     const { userId } = req.params;
 
@@ -612,7 +611,6 @@ const getUserPostStats = asyncHandler(async (req, res) => {
     }, "User post statistics fetched successfully"));
 });
 
-// Get top contributors (users with most posts)
 const getTopContributors = asyncHandler(async (req, res) => {
     const { limit = 10, timeframe = 'all' } = req.query;
     
@@ -643,7 +641,6 @@ const getTopContributors = asyncHandler(async (req, res) => {
         }
     }
 
-    // Get users with their post counts
     const [lostPostStats, foundPostStats] = await Promise.all([
         LostPost.aggregate([
             { $match: dateFilter },
@@ -667,10 +664,8 @@ const getTopContributors = asyncHandler(async (req, res) => {
         ])
     ]);
 
-    // Combine the results
     const userStatsMap = new Map();
 
-    // Process lost posts
     lostPostStats.forEach(stat => {
         userStatsMap.set(stat._id.toString(), {
             userId: stat._id,
@@ -681,7 +676,6 @@ const getTopContributors = asyncHandler(async (req, res) => {
         });
     });
 
-    // Process found posts and combine
     foundPostStats.forEach(stat => {
         const userId = stat._id.toString();
         if (userStatsMap.has(userId)) {
@@ -699,7 +693,6 @@ const getTopContributors = asyncHandler(async (req, res) => {
         }
     });
 
-    // Convert to array and calculate totals
     const userStats = Array.from(userStatsMap.values()).map(stat => ({
         ...stat,
         totalPosts: stat.lostPosts + stat.foundPosts,
@@ -710,17 +703,14 @@ const getTopContributors = asyncHandler(async (req, res) => {
             : 0
     }));
 
-    // Sort by total posts and limit
     const topContributors = userStats
         .sort((a, b) => b.totalPosts - a.totalPosts)
         .slice(0, parseInt(limit));
 
-    // Populate user details
     const userIds = topContributors.map(stat => stat.userId);
     const users = await User.find({ _id: { $in: userIds } })
         .select('fullName email avatar isVerified createdAt lastActive');
 
-    // Combine user details with stats
     const contributorsWithDetails = topContributors.map(stat => {
         const user = users.find(u => u._id.toString() === stat.userId.toString());
         return {
@@ -744,8 +734,7 @@ const getTopContributors = asyncHandler(async (req, res) => {
     }, "Top contributors fetched successfully"));
 });
 
-// Get post statistics for admin dashboard
- const getPostStatistics = asyncHandler(async (req, res) => {
+const getPostStatistics = asyncHandler(async (req, res) => {
     const { timeframe = 'all' } = req.query;
     
     let dateFilter = {};
@@ -799,7 +788,6 @@ const getTopContributors = asyncHandler(async (req, res) => {
                 $gte: new Date(new Date().setHours(0, 0, 0, 0)) 
             } 
         }),
-        // Posts with at least one claim
         LostPost.countDocuments({ 
             ...dateFilter, 
             'claims.0': { $exists: true } 
@@ -807,7 +795,6 @@ const getTopContributors = asyncHandler(async (req, res) => {
             ...dateFilter, 
             'claims.0': { $exists: true } 
         }),
-        // Resolved posts (found items that are returned or lost items that are found)
         LostPost.countDocuments({ ...dateFilter, isFound: true }) + 
         FoundPost.countDocuments({ ...dateFilter, isReturned: true })
     ]);
@@ -850,8 +837,7 @@ const getTopContributors = asyncHandler(async (req, res) => {
     }, "Post statistics fetched successfully"));
 });
 
-// Get user posting activity over time
- const getUserPostingActivity = asyncHandler(async (req, res) => {
+const getUserPostingActivity = asyncHandler(async (req, res) => {
     const { userId, period = 'month' } = req.query;
     
     let groupByFormat, dateRange;
@@ -938,5 +924,4 @@ export {
     getTopContributors,
     getPostStatistics,
     getUserPostingActivity
-
 };

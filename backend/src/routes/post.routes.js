@@ -41,18 +41,12 @@ postRouter.get("/my/lost", getMyLostPosts);
 postRouter.get("/my/found", getMyFoundPosts);
 
 // Create lost/found post with image upload
-postRouter.post("/found", upload.array("images", 3), createFoundPost);
-postRouter.post("/lost", upload.array("images", 3), createLostPost);
+postRouter.post("/found/create", upload.array("images", 3), createFoundPost);
+postRouter.post("/lost/create", upload.array("images", 3), createLostPost);
 
 // Update lost/found post
-postRouter.put("/:type/:postId", (req, res, next) => {
-  // Use correct multer middleware based on type
-  if (req.params.type === "found") {
-    upload.single("image")(req, res, next);
-  } else {
-    upload.array("images", 3)(req, res, next);
-  }
-}, updatePost);
+postRouter.put("/:type/:postId", upload.array("images", 3), updatePost);
+
 
 // Get single post by type and ID
 postRouter.get("/:type/:postId", getPostById);
