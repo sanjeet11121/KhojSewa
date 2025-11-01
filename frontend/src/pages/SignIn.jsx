@@ -42,9 +42,11 @@ function SignIn() {
         
         // Store token WITHOUT Bearer prefix (add it in requests)
         const accessToken = data.data?.accessToken;
+        const user = data.data?.user;
         console.log('Access token:', accessToken);
+        console.log('User role:', user?.role);
         
-        localStorage.setItem('user', JSON.stringify(data.data?.user));
+        localStorage.setItem('user', JSON.stringify(user));
         localStorage.setItem('accessToken', accessToken);
         
         // Verify token was stored
@@ -53,8 +55,13 @@ function SignIn() {
         console.log('Stored token:', storedToken);
         console.log('Stored user:', storedUser);
         
+        // Redirect based on user role
         setTimeout(() => {
-          navigate('/');
+          if (user?.role === 'admin') {
+            navigate('/admin');
+          } else {
+            navigate('/');
+          }
         }, 1000);
       }
     } catch (err) {
