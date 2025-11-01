@@ -1,4 +1,4 @@
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Route, BrowserRouter as Router, Routes, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import AdminLayout from "./admin/AdminLayout";
 import Dashboard from "./admin/pages/Dashboard";
@@ -27,6 +27,48 @@ import ClaimsDashboard from "./components/claim/ClaimsDashboard.jsx";
 import ClaimDetail from "./components/claim/ClaimDetail.jsx";
 import ChatPage from './pages/User/chatPages/ChatPage';
 
+
+// AdminProtectedRoute component to protect admin routes
+const AdminProtectedRoute = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const parsedUser = JSON.parse(userStr);
+        setUser(parsedUser);
+      }
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  // If user is not logged in, redirect to sign in
+  if (!user) {
+    return <Navigate to="/signin" replace />;
+  }
+
+  // If user is not admin, show 404 page
+  if (user.role !== 'admin') {
+    return <NotFound />;
+  }
+
+  // If user is admin, render the children (admin routes)
+  return children;
+};
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -60,8 +102,8 @@ function App() {
         <Route path="/user/messages" element={<ChatPage user={currentUser} />} />
 
 
-        {/* Admin Pages */}
-        <Route path="/admin" element={<AdminLayout />}>
+        {/* Admin Pages - Protected */}
+        <Route path="/admin" element={<AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>}>
           <Route index element={<Dashboard />} /> 
           <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<UserDetailPage />} /> {/* ✅ New Route for individual user */}

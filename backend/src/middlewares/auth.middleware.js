@@ -77,7 +77,8 @@ export const requireAdmin = asyncHandler(async (req, res, next) => {
     }
 
     if (req.user.role !== 'admin') {
-        throw new ApiError(403, 'Admin access required');
+        // Return 404 to hide admin routes from non-admin users
+        throw new ApiError(404, 'Page not found');
     }
 
     next();
