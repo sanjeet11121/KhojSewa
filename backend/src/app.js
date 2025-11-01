@@ -35,10 +35,10 @@ const __dirname = path.dirname(__filename);
 
 // Middlewares
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 console.log('CORS configured with origin:', process.env.CORS_ORIGIN || 'http://localhost:5173');
@@ -62,79 +62,82 @@ app.use('/api/v1/real-time-matching', realTimeMatchingRoutes);
 
 // NEW: Monitoring Routes (for admin/status checking)
 app.get('/api/v1/monitoring/status', (req, res) => {
-    res.json({
-        success: true,
-        data: {
-            monitoring: AutomatedNotificationService.getStatus(),
-            cronJobs: MatchCronJob.getStatus()
-        }
-    });
+    res.json({
+        success: true,
+        data: {
+            monitoring: AutomatedNotificationService.getStatus(),
+            cronJobs: MatchCronJob.getStatus()
+        }
+    });
 });
 
 // NEW: Monitoring control routes (admin only)
 app.post('/api/v1/monitoring/start', (req, res) => {
-    AutomatedNotificationService.startMonitoring();
-    res.json({ 
-        success: true,
-        message: 'Automatic monitoring started' 
-    });
+    AutomatedNotificationService.startMonitoring();
+    res.json({ 
+        success: true,
+        message: 'Automatic monitoring started' 
+    });
 });
 
 app.post('/api/v1/monitoring/stop', (req, res) => {
-    AutomatedNotificationService.stopMonitoring();
-    res.json({ 
-        success: true,
-        message: 'Automatic monitoring stopped' 
-    });
+    AutomatedNotificationService.stopMonitoring();
+    res.json({ 
+        success: true,
+        message: 'Automatic monitoring stopped' 
+    });
 });
 
 app.post('/api/v1/monitoring/process-all', async (req, res) => {
-    try {
-        await AutomatedNotificationService.processAllExistingPosts();
-        res.json({ 
-            success: true,
-            message: 'Processing all existing posts completed' 
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error processing posts: ' + error.message
-        });
-    }
+    try {
+        await AutomatedNotificationService.processAllExistingPosts();
+        res.json({ 
+            success: true,
+            message: 'Processing all existing posts completed' 
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error processing posts: ' + error.message
+        });
+    }
 });
 
 app.post('/api/v1/monitoring/clear-cache', (req, res) => {
-    AutomatedNotificationService.clearCache();
-    res.json({ 
-        success: true,
-        message: 'Monitoring cache cleared' 
-    });
+    AutomatedNotificationService.clearCache();
+    res.json({ 
+        success: true,
+        message: 'Monitoring cache cleared' 
+    });
 });
 
 // ✅ Serve 404.html for unmatched routes
 app.use((req, res, next) => {
-  res.status(404).sendFile(path.join(__dirname, "public", "404.html"));
+  res.status(404).sendFile(path.join(__dirname, "public", "404.html"));
 });
 
 // ✅ Global error handler
 app.use((err, req, res, next) => {
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || "Internal Server Error",
-  });
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+  });
 });
 
 // NEW: Start automated services when server starts
 const startAutomatedServices = () => {
-    if (process.env.ENABLE_AUTO_MATCHING === 'true') {
-        console.log('🚀 Starting automated matching system...');
-        AutomatedNotificationService.startMonitoring();
-        MatchCronJob.start();
-        console.log(' Automatic matching system started!');
-    } else {
-        console.log('  Auto-matching disabled (set ENABLE_AUTO_MATCHING=true to enable)');
-    }
+    if (process.env.ENABLE_AUTO_MATCHING === 'true') {
+        console.log('🚀 Starting automated matching system...');
+        AutomatedNotificationService.startMonitoring();
+        MatchCronJob.start();
+        console.log('✅ Automatic matching system started!'); // Added checkmark for consistency
+    } else {
+        console.log('  ⚠️ Auto-matching disabled (set ENABLE_AUTO_MATCHING=true to enable)'); // Added warning icon for clarity
+    }
 };
 
-// Call this after your server starts listening
-export { app, server, startAutomatedServices };
+// --- MODIFIED EXPORT ---
+// Export the HTTP server instance as 'server' for the main entry point to listen on,
+// and export the function to start services.
+export { server, startAutomatedServices };
+// Note: We no longer export 'app' separately, as 'server' (the HTTP server) is what is needed for listening.
