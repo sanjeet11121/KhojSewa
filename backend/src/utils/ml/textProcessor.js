@@ -83,9 +83,28 @@ class EnhancedTextProcessor {
     }
 
     normalizeCategory(category) {
+        // Handle null, undefined, or empty values
         if (!category) return 'other';
         
-        const lowerCategory = category.toLowerCase();
+        // Convert to string if it's not already (handles objects, numbers, etc.)
+        let categoryStr;
+        if (typeof category === 'string') {
+            categoryStr = category;
+        } else if (typeof category === 'object' && category !== null) {
+            // If it's an object, try to get a string representation
+            categoryStr = category.toString();
+        } else {
+            // For numbers, booleans, etc., convert to string
+            categoryStr = String(category);
+        }
+        
+        // Trim and lowercase
+        const lowerCategory = categoryStr.trim().toLowerCase();
+        
+        // Check if empty after trimming
+        if (!lowerCategory) return 'other';
+        
+        // Match against category mapping
         for (const [key, values] of Object.entries(this.categoryMapping)) {
             if (values.map(v => v.toLowerCase()).includes(lowerCategory)) {
                 return key;

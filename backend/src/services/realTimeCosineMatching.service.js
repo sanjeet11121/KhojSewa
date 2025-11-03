@@ -89,7 +89,8 @@ class RealTimeCosineMatching {
                 location: 0.15,
                 date: 0.05
             },
-            minScore = 0.1
+            minScore = 0.1,
+            excludeUserId
         } = options;
 
         // 1. Fetch the lost post from database
@@ -102,11 +103,18 @@ class RealTimeCosineMatching {
         }
 
         // 2. Fetch all relevant found posts from database in real-time
-        const foundPosts = await FoundPost.find({ 
+        const query = { 
             isReturned: false,
             // Optional: Add category filter for better performance
             // category: lostPost.category 
-        })
+        };
+        
+        // Exclude posts from the same user
+        if (excludeUserId) {
+            query.user = { $ne: excludeUserId };
+        }
+        
+        const foundPosts = await FoundPost.find(query)
         .populate('user', 'fullName email')
         .lean();
 
@@ -167,7 +175,8 @@ class RealTimeCosineMatching {
                 location: 0.15,
                 date: 0.05
             },
-            minScore = 0.1
+            minScore = 0.1,
+            excludeUserId
         } = options;
 
         // 1. Fetch the found post from database
@@ -180,10 +189,17 @@ class RealTimeCosineMatching {
         }
 
         // 2. Fetch all relevant lost posts from database in real-time
-        const lostPosts = await LostPost.find({ 
+        const query = { 
             isFound: false,
             // category: foundPost.category // Optional filter
-        })
+        };
+        
+        // Exclude posts from the same user
+        if (excludeUserId) {
+            query.user = { $ne: excludeUserId };
+        }
+        
+        const lostPosts = await LostPost.find(query)
         .populate('user', 'fullName email')
         .lean();
 
